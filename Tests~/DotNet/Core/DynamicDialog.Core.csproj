@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Builds Runtime/Core against netstandard2.1 (Unity's API level) outside Unity. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>DynamicDialog</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../Runtime/Core/**/*.cs" />
+  </ItemGroup>
+</Project>

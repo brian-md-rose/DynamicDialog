@@ -1,0 +1,169 @@
+using System.Collections.Generic;
+
+namespace DynamicDialog
+{
+    /// <summary>How a response picks among its recorded variations (talk slide 65).</summary>
+    public enum ResponseSelection
+    {
+        /// <summary>Uniformly random. May repeat.</summary>
+        Random,
+
+        /// <summary>Random, but never the same variation twice in a row.</summary>
+        RandomNoRepeat,
+
+        /// <summary>Plays every variation in a random order before any repeats.</summary>
+        Shuffle,
+
+        /// <summary>In authored order, looping.</summary>
+        Sequential,
+    }
+
+    public enum MessageSeverity
+    {
+        Info,
+        Warning,
+        Error,
+    }
+
+    /// <summary>A problem found while reading or checking authored rules.</summary>
+    public readonly struct AuthoringMessage
+    {
+        public readonly MessageSeverity Severity;
+        public readonly string Text;
+
+        /// <summary>The source file, if known.</summary>
+        public readonly string File;
+
+        /// <summary>1-based line (or spreadsheet row), or 0 if unknown.</summary>
+        public readonly int Line;
+
+        /// <summary>The rule the message is about, if any.</summary>
+        public readonly string Rule;
+
+        public AuthoringMessage(MessageSeverity severity, string text, string file = null, int line = 0, string rule = null)
+        {
+            Severity = severity;
+            Text = text;
+            File = file;
+            Line = line;
+            Rule = rule;
+        }
+
+        public override string ToString()
+        {
+            string where = File != null ? (Line > 0 ? $"{File}({Line})" : File) : (Line > 0 ? $"line {Line}" : null);
+            string prefix = where != null ? where + ": " : "";
+            string rule = Rule != null ? $"[{Rule}] " : "";
+            return $"{prefix}{Severity.ToString().ToLowerInvariant()}: {rule}{Text}";
+        }
+    }
+
+    /// <summary>An authored criterion before compilation. Values stay as text until compiled.</summary>
+    public sealed class CriterionSource
+    {
+        public string Key;
+        public CriterionOp Op;
+        public string Value;
+        public string Value2;
+        public bool HasDefault;
+        public float Default;
+    }
+
+    public sealed class LineSource
+    {
+        public string Text;
+        /// <summary>An audio clip name or path, resolved by the Unity importer.</summary>
+        public string Audio;
+        public float Duration;
+        public string Anim;
+    }
+
+    public sealed class FactWriteSource
+    {
+        public FactScope Scope = FactScope.Speaker;
+        public string Character;
+        public string Key;
+        public FactOp Op = FactOp.Set;
+        public string Value = "1";
+        public float Duration;
+    }
+
+    public sealed class FollowupSource
+    {
+        public FollowupTarget Target = FollowupTarget.Character;
+        public string Character;
+        public string Concept;
+        public float Delay;
+    }
+
+    /// <summary>
+    /// One rule as written by a writer, in any format (.dlg text, spreadsheet, inspector).
+    /// Parsers produce these; the Unity importer turns them into a <c>DialogRuleDatabase</c>.
+    /// </summary>
+    public sealed class RuleSource
+    {
+        public string Name;
+        public string Who;
+        public string Concept;
+        public readonly List<CriterionSource> Criteria = new List<CriterionSource>();
+        public ResponseSelection Selection = ResponseSelection.RandomNoRepeat;
+        public readonly List<LineSource> Lines = new List<LineSource>();
+        public readonly List<FactWriteSource> Writes = new List<FactWriteSource>();
+        public readonly List<FollowupSource> Followups = new List<FollowupSource>();
+        public bool Once;
+        public float Cooldown;
+        public float Weight = 1f;
+        public int ScoreBonus;
+
+        /// <summary>Where the rule starts in its source, for messages.</summary>
+        public int SourceLine;
+
+        /// <summary>Builds the core rule, with <paramref name="response"/> as its payload.</summary>
+        public Rule ToRule(object response = null)
+        {
+            var criteria = new List<Criterion>(Criteria.Count + 2);
+            if (!string.IsNullOrWhiteSpace(Who)) criteria.Add(Criterion.Eq(WellKnownFacts.Who, Symbol.Of(Who.Trim())));
+            if (!string.IsNullOrWhiteSpace(Concept)) criteria.Add(Criterion.Eq(WellKnownFacts.Concept, Symbol.Of(Concept.Trim())));
+            foreach (var c in Criteria)
+            {
+                float value = FactValue.Parse(c.Value, out bool valueIsSymbol);
+                var built = FactValue.CreateCriterion(Symbol.Of(c.Key), c.Op, value, FactValue.Parse(c.Value2), valueIsSymbol);
+                criteria.Add(c.HasDefault && c.Op != CriterionOp.ZeroOrMissing ? built.WhenMissing(c.Default) : built);
+            }
+
+            var writes = new List<FactWrite>(Writes.Count);
+            foreach (var w in Writes)
+            {
+                float value = FactValue.Parse(w.Value, out bool valueIsSymbol);
+                writes.Add(new FactWrite(w.Scope, Symbol.Of(w.Key), w.Op, value, w.Duration, Symbol.Of(w.Character), valueIsSymbol));
+            }
+
+            var followups = new List<Followup>(Followups.Count);
+            foreach (var f in Followups)
+                followups.Add(new Followup(f.Target, Symbol.Of(f.Concept), Symbol.Of(f.Character), f.Delay));
+
+            return new Rule(Name, criteria, response, writes, followups,
+                Once ? RuleFlags.Once : RuleFlags.None, Cooldown, Weight, ScoreBonus);
+        }
+    }
+
+    /// <summary>The result of reading one source file.</summary>
+    public sealed class DialogSource
+    {
+        public readonly List<RuleSource> Rules = new List<RuleSource>();
+        public readonly List<AuthoringMessage> Messages = new List<AuthoringMessage>();
+
+        /// <summary>Fact keys for partitioning, from a "@partition" directive. Empty means the default.</summary>
+        public readonly List<string> PartitionKeys = new List<string>();
+
+        public bool HasErrors
+        {
+            get
+            {
+                foreach (var m in Messages)
+                    if (m.Severity == MessageSeverity.Error) return true;
+                return false;
+            }
+        }
+    }
+}

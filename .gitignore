@@ -1,0 +1,3 @@
+Tests~/DotNet/**/bin/
+Tests~/DotNet/**/obj/
+*.user
