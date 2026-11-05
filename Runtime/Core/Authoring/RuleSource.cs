@@ -76,6 +76,9 @@ namespace DynamicDialog
         public string Audio;
         public float Duration;
         public string Anim;
+
+        /// <summary>Localization key. Empty means: the audio clip's name, else "&lt;rule&gt;_&lt;n&gt;".</summary>
+        public string Key;
     }
 
     public sealed class FactWriteSource

@@ -32,6 +32,7 @@ namespace DynamicDialog.Editor
                 if (GUILayout.Button("Export .dlg…")) ExportDlg(db);
                 if (GUILayout.Button("Export Recording Script…")) ExportRecordingScript(db);
             }
+            if (GUILayout.Button("Export String Table CSV…")) ExportStringTable(db);
 
             if (messages != null)
             {
@@ -75,6 +76,14 @@ namespace DynamicDialog.Editor
             string path = EditorUtility.SaveFilePanel("Export recording script", "", db.name + "_recording.csv", "csv");
             if (string.IsNullOrEmpty(path)) return;
             File.WriteAllText(path, DialogScriptWriter.ToRecordingScript(db.ToSources()));
+            EditorUtility.RevealInFinder(path);
+        }
+
+        static void ExportStringTable(DialogRuleDatabase db)
+        {
+            string path = EditorUtility.SaveFilePanel("Export string table for translators", "", db.name + "_strings.csv", "csv");
+            if (string.IsNullOrEmpty(path)) return;
+            File.WriteAllText(path, DialogScriptWriter.ToStringTableCsv(db.ToSources()));
             EditorUtility.RevealInFinder(path);
         }
 

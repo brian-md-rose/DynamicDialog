@@ -43,6 +43,7 @@ namespace DynamicDialog
                     clip = string.IsNullOrWhiteSpace(l.Audio) || resolveAudio == null ? null : resolveAudio(l.Audio.Trim()),
                     duration = l.Duration,
                     animatorTrigger = l.Anim,
+                    key = l.Key,
                 });
 
             foreach (var w in s.Writes)
@@ -96,6 +97,7 @@ namespace DynamicDialog
                         Audio = l.clip != null ? l.clip.name : null,
                         Duration = l.duration,
                         Anim = l.animatorTrigger,
+                        Key = l.key,
                     });
             }
 

@@ -1,6 +1,6 @@
 {
   "name": "com.dynamicdialog",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "displayName": "Dynamic Dialog",
   "description": "Rule-database driven contextual dialog (after Elan Ruskin's GDC 2012 talk). Characters query a flat table of world facts; the most specific matching rule wins, can write facts back to memory, and can trigger followup concepts on other characters.",
   "unity": "2021.3",
@@ -9,7 +9,15 @@
     "com.unity.modules.audio": "1.0.0",
     "com.unity.modules.animation": "1.0.0",
     "com.unity.modules.physics": "1.0.0",
-    "com.unity.modules.imgui": "1.0.0"
+    "com.unity.modules.imgui": "1.0.0",
+    "com.unity.modules.jsonserialize": "1.0.0"
   },
+  "samples": [
+    {
+      "displayName": "Robot Banter",
+      "description": "Two robots wander a room and talk about what they see: sightings, a running gag, conversations, replies from whoever is in earshot, idle chatter, and danger interrupting a conversation. All lines are in RobotBanter.dlg; edit it while playing.",
+      "path": "Samples~/RobotBanter"
+    }
+  ],
   "author": { "name": "Brian Rose" }
 }

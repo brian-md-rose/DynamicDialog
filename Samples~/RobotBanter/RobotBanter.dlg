@@ -1,0 +1,110 @@
+# Robot Banter: two robots, Bolt and Sprocket, wander a room and talk about what they see.
+# Edit this file while the sample is playing; the robots pick up your changes as soon as you save.
+# Open Window > Dynamic Dialog > Debugger to see every lookup and why each rule did or didn't play.
+
+# ---- Sightings: the most specific rule wins ---------------------------------------------
+
+rule SeeAnything
+  concept OnSee
+  cooldown 8s
+  say "Huh. Would you look at that."
+  say "Interesting. Very interesting."
+  say "I have no idea what that is."
+
+rule SeeRadiator
+  concept OnSee
+  if object == radiator
+  cooldown 30s
+  say "Warm in here. Or is it just me?"
+
+rule SeeHazard
+  concept OnSee
+  if object == toxic_barrel
+  cooldown 15s
+  say "Whoa. That one's glowing."
+
+# ---- A running gag: Bolt remembers every barrel ------------------------------------------
+
+rule BoltFirstBarrel
+  who Bolt
+  concept OnSee
+  if object == barrel and seen_barrels missing
+  say "A barrel! I love barrels."
+  remember seen_barrels += 1
+  then Sprocket BarrelReply
+
+rule BoltSecondBarrel
+  who Bolt
+  concept OnSee
+  if object == barrel and seen_barrels == 1
+  say "Another barrel. Or the same barrel. Hard to say."
+  remember seen_barrels += 1
+
+rule BoltBarrelObsessed
+  who Bolt
+  concept OnSee
+  if object == barrel and seen_barrels >= 2
+  cooldown 20s
+  say "Barrel. Barrel. Barrel."
+  say "Hello again, barrel."
+  remember seen_barrels += 1
+
+# Replies only happen if the robot isn't in danger when its turn comes, so a conversation
+# ends on its own when someone wanders near the glowing barrel.
+rule SprocketBarrelReply
+  who Sprocket
+  concept BarrelReply
+  if in_danger missing
+  say "You say that about every barrel."
+  then Bolt BarrelDefense after 0.3s
+
+rule BoltBarrelDefense
+  who Bolt
+  concept BarrelDefense
+  if in_danger missing
+  say "Every barrel deserves love."
+
+# ---- "then any": whoever is in earshot answers --------------------------------------------
+
+rule SprocketSeesSoda
+  who Sprocket
+  concept OnSee
+  if object == soda_can
+  once
+  say "Soda. I can't drink it, but I respect it."
+  then any SodaReply
+
+rule AnyoneSodaReply
+  concept SodaReply
+  say "Respect the soda."
+
+# ---- Idle chatter -------------------------------------------------------------------------
+
+rule IdleSmallTalk
+  concept TalkIdle
+  if rand < 20 and nearby_speakers >= 1
+  cooldown 15s
+  say "So. How about this room."
+  say "Do you ever wonder what's outside the room?"
+
+rule BoltTellsJoke
+  who Bolt
+  concept TalkIdle
+  if near_Sprocket == 1 and told_joke missing and rand < 50
+  say "Why did the robot cross the room? It was programmed to."
+  remember world told_joke = 1
+  then Sprocket JokeReply after 0.5s
+
+rule SprocketJokeReply
+  who Sprocket
+  concept JokeReply
+  if in_danger missing
+  say "That's not a joke. That's a work order."
+
+# ---- Danger interrupts whatever is being said ---------------------------------------------
+
+rule TooClose
+  concept InDanger
+  cooldown 6s
+  say "Too close to the glowing barrel!"
+  say "Backing away. Backing away."

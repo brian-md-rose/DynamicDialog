@@ -10,7 +10,7 @@ namespace DynamicDialog
     /// <para>
     /// Known columns (case-insensitive; spaces and underscores ignored):
     /// <c>rule</c>, <c>who</c>, <c>concept</c>, <c>if</c> (criteria in .dlg syntax, e.g. "health &lt; 30; map == swamp"),
-    /// <c>text</c>, <c>audio</c>, <c>duration</c>, <c>anim</c>, <c>remember</c> ("said_x = 1; world gossip += 1 for 10s"),
+    /// <c>text</c>, <c>audio</c>, <c>duration</c>, <c>anim</c>, <c>key</c> (localization key), <c>remember</c> ("said_x = 1; world gossip += 1 for 10s"),
     /// <c>then</c> ("Rochelle Reply after 1s; any Cheer"), <c>once</c> (x/yes/true/1), <c>cooldown</c>, <c>weight</c>,
     /// <c>bonus</c>, <c>select</c>.
     /// Columns named notes, comment(s), description, status or actor, and columns starting with '#', are ignored.
@@ -28,7 +28,7 @@ namespace DynamicDialog
     {
         enum Column
         {
-            Ignore, Criterion, Rule, Who, Concept, If, Text, Audio, Duration, Anim, Remember, Then, Once, Cooldown, Weight, Bonus, Select,
+            Ignore, Criterion, Rule, Who, Concept, If, Text, Audio, Duration, Anim, Key, Remember, Then, Once, Cooldown, Weight, Bonus, Select,
         }
 
         /// <param name="delimiter">',' or '\t'. Pass '\0' to detect from the header row.</param>
@@ -127,7 +127,7 @@ namespace DynamicDialog
             return result;
         }
 
-        static bool IsLineColumn(Column c) => c == Column.Text || c == Column.Audio || c == Column.Duration || c == Column.Anim;
+        static bool IsLineColumn(Column c) => c == Column.Text || c == Column.Audio || c == Column.Duration || c == Column.Anim || c == Column.Key;
 
         static void ApplyLineCell(LineSource line, Column column, string cell)
         {
@@ -137,6 +137,7 @@ namespace DynamicDialog
                 case Column.Audio: line.Audio = cell; break;
                 case Column.Duration: line.Duration = Syntax.ParseSeconds(cell); break;
                 case Column.Anim: line.Anim = cell; break;
+                case Column.Key: line.Key = cell; break;
             }
         }
 
@@ -238,6 +239,7 @@ namespace DynamicDialog
                 case "audio": case "file": case "clip": case "vo": case "audiofile": return Column.Audio;
                 case "duration": return Column.Duration;
                 case "anim": case "animation": return Column.Anim;
+                case "key": case "linekey": case "stringkey": case "loc": case "lockey": return Column.Key;
                 case "remember": case "sets": case "write": case "writes": return Column.Remember;
                 case "then": case "followup": case "followups": case "next": return Column.Then;
                 case "once": return Column.Once;

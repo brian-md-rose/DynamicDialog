@@ -242,6 +242,88 @@ namespace DynamicDialog.Tests
             Assert.AreEqual("generic", knight.Speak("Talk").Rule.Name, "the region's facts are gone");
         }
 
+        sealed class FakeLocalizer : IDialogLocalizer
+        {
+            public AudioClip Clip;
+            public string GetText(string key, DialogLineDefinition line) => key == "GREET_1" ? "Bonjour !" : null;
+            public AudioClip GetClip(string key, DialogLineDefinition line) => key == "GREET_1" ? Clip : null;
+        }
+
+        [UnityTest]
+        public IEnumerator Localizer_ReplacesTextAndClip_AndFallsBack()
+        {
+            var greet = Rule("greet", "Nick", "Greet");
+            greet.response.lines[0].key = "GREET_1";
+            greet.response.lines[0].duration = 0;
+            SetRules(greet, Rule("other", "Nick", "Other"));
+            var clip = Track(AudioClip.Create("bonjour", 4410, 1, 44100, false)); // 0.1s
+            director.Localizer = new FakeLocalizer { Clip = clip };
+
+            var nick = MakeSpeaker("Nick", Vector3.zero);
+            var source = nick.gameObject.AddComponent<AudioSource>();
+            SetPrivate(nick, "audioSource", source);
+            string subtitle = null;
+            nick.onSubtitle.AddListener(t => subtitle = t);
+            yield return null;
+
+            nick.Speak("Greet");
+            Assert.AreEqual("GREET_1", nick.CurrentKey);
+            Assert.AreEqual("Bonjour !", nick.CurrentText);
+            Assert.AreEqual("Bonjour !", subtitle);
+            Assert.AreSame(clip, nick.CurrentClip);
+            Assert.AreSame(clip, source.clip, "the localized clip is what plays");
+            yield return WaitUntil(() => !nick.IsSpeaking);
+
+            nick.Speak("Other");
+            Assert.AreEqual("other_1", nick.CurrentKey, "no key or clip: <rule>_<n>");
+            Assert.AreEqual("other", nick.CurrentText, "no translation: the authored text");
+        }
+
+        [UnityTest]
+        public IEnumerator SaveAndLoad_RoundTripsThroughJson()
+        {
+            var intro = Rule("intro", "Nick", "Talk");
+            intro.once = true;
+            intro.scoreBonus = 1; // beats generic while available, instead of tying
+            intro.remember.Add(new FactWriteDefinition { key = "mood", value = "grumpy" });
+            SetRules(intro, Rule("generic", "Nick", "Talk", duration: 0.01f));
+            database.name = "Global";
+            var nick = MakeSpeaker("Nick", Vector3.zero);
+            yield return null;
+
+            Assert.AreEqual("intro", nick.Speak("Talk").Rule.Name);
+            yield return WaitUntil(() => !nick.IsSpeaking);
+
+            var region = Track(ScriptableObject.CreateInstance<DialogRuleDatabase>());
+            region.name = "Swamp";
+            var swampOnce = Rule("swampOnce", "Nick", "Swamp", duration: 0.01f);
+            swampOnce.once = true;
+            region.rules.Add(swampOnce);
+            director.AddDatabase(region);
+            nick.Speak("Swamp");
+            yield return WaitUntil(() => !nick.IsSpeaking);
+            director.RemoveDatabase(region);
+
+            string json = director.SaveStateJson();
+            StringAssert.Contains("grumpy", json, "symbols are saved by name");
+
+            // Wipe everything, as if starting a new session, then load.
+            director.LoadState(new DialogSaveData());
+            Assert.AreEqual("intro", nick.Speak("Talk").Rule.Name, "a blank load resets once rules");
+            nick.StopLine();
+
+            director.LoadStateJson(json);
+            Assert.AreEqual("generic", nick.Speak("Talk").Rule.Name, "the save remembers intro already played");
+            nick.StopLine();
+            Assert.IsTrue(nick.Memory.TryGet("mood", Time.timeAsDouble, out float mood));
+            Assert.AreEqual(Symbol.Of("grumpy").AsValue, mood);
+
+            region.Invalidate(); // fresh rule objects, as after a real reload
+            director.AddDatabase(region);
+            Assert.IsNull(nick.Speak("Swamp"), "state for a region loaded after the save is applied when it loads");
+            StringAssert.Contains("swampOnce", director.SaveStateJson(), "and it is saved again");
+        }
+
         [UnityTest]
         public IEnumerator EditingDatabase_HotReloadsRules()
         {

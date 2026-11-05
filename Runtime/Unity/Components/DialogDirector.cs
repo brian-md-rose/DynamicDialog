@@ -66,10 +66,17 @@ namespace DynamicDialog
         readonly Dictionary<DialogRuleDatabase, RuleSet> activeSets = new Dictionary<DialogRuleDatabase, RuleSet>(ReferenceComparer.Instance);
         readonly Dictionary<DialogRuleDatabase, DialogRuleDatabase> aliases = new Dictionary<DialogRuleDatabase, DialogRuleDatabase>(ReferenceComparer.Instance);
         readonly Queue<DialogLine> history = new Queue<DialogLine>();
+        // Rule state for databases that aren't loaded: from a save, or kept when a region unloaded.
+        // secondsSinceFired is relative to pendingAsOf; AgePending brings it up to date.
+        List<RuleStateSave> pendingRuleStates = new List<RuleStateSave>();
+        double pendingAsOf;
 
         public DialogEngine Engine { get; private set; }
         public DialogConductor Conductor { get; private set; }
         public IRandomSource Random { get; private set; }
+
+        /// <summary>Translates subtitles and voice clips. Defaults to an IDialogLocalizer component on this GameObject.</summary>
+        public IDialogLocalizer Localizer { get; set; }
 
         /// <summary>Recorded lookups, or null when recording is off.</summary>
         public DialogRecorder Recorder => Engine?.Recorder;
@@ -119,6 +126,7 @@ namespace DynamicDialog
             Conductor = new DialogConductor(Engine) { NamedFollowupsRequireEarshot = namedFollowupsRequireEarshot };
             if (recordLookups && Debug.isDebugBuild) Engine.Recorder = new DialogRecorder(recordCapacity);
 
+            if (Localizer == null) Localizer = GetComponent<IDialogLocalizer>();
             if (addBuiltInWorldFacts) Engine.WorldProviders.Add(this);
             foreach (var p in GetComponents<IFactProvider>())
                 if (!ReferenceEquals(p, this)) Engine.WorldProviders.Add(p);
@@ -158,6 +166,8 @@ namespace DynamicDialog
             var set = database.RuleSet;
             activeSets[database] = set;
             Engine.Matcher.Add(set);
+            AgePending();
+            DialogSaveExtensions.ApplyRuleStates(set, pendingRuleStates, Engine.Clock.Now);
             database.Changed += OnDatabaseChanged;
         }
 
@@ -172,7 +182,11 @@ namespace DynamicDialog
                 return;
             }
             loaded.Remove(database);
-            if (activeSets.TryGetValue(database, out var set)) Engine.Matcher.Remove(set);
+            if (activeSets.TryGetValue(database, out var set))
+            {
+                KeepRuleStates(set);
+                Engine.Matcher.Remove(set);
+            }
             activeSets.Remove(database);
             database.Changed -= OnDatabaseChanged;
         }
@@ -235,6 +249,71 @@ namespace DynamicDialog
             Engine.Matcher.Add(fresh);
             if (logLines) Debug.Log($"[DynamicDialog] Reloaded rules from {database.name} ({fresh.Rules.Count} rules).", database);
         }
+
+        // ---- Save / load -------------------------------------------------------------------------
+
+        /// <summary>Captures dialog memory and rule state (once/cooldown) for a save game.</summary>
+        public DialogSaveData SaveState()
+        {
+            EnsureInitialized();
+            var data = Engine.SaveState();
+            AgePending();
+            // States for region databases that aren't loaded right now still belong in the save.
+            foreach (var p in pendingRuleStates)
+                data.rules.Add(new RuleStateSave { set = p.set, rule = p.rule, disabled = p.disabled, timesFired = p.timesFired, secondsSinceFired = p.secondsSinceFired });
+            return data;
+        }
+
+        /// <summary>
+        /// Restores a save: replaces memory and rule state, and stops any lines and followups in progress.
+        /// Rule state for databases loaded later (e.g. by a region) is applied when they load.
+        /// </summary>
+        public void LoadState(DialogSaveData data)
+        {
+            EnsureInitialized();
+            Conductor.StopAll();
+            Conductor.ClearPendingFollowups();
+            pendingRuleStates = Engine.LoadState(data);
+            pendingAsOf = Engine.Clock.Now;
+        }
+
+        /// <summary>
+        /// Remembers which rules of an unloading set have played, so leaving a region and coming back
+        /// (or saving while it's unloaded) doesn't reset its once/cooldown rules.
+        /// </summary>
+        void KeepRuleStates(RuleSet set)
+        {
+            AgePending();
+            double now = Engine.Clock.Now;
+            pendingRuleStates.RemoveAll(p => string.Equals(p.set, set.Name, StringComparison.OrdinalIgnoreCase));
+            foreach (var r in set.Rules)
+            {
+                if (r.State.TimesFired == 0 && !r.State.Disabled) continue;
+                pendingRuleStates.Add(new RuleStateSave
+                {
+                    set = set.Name,
+                    rule = r.Name,
+                    disabled = r.State.Disabled,
+                    timesFired = r.State.TimesFired,
+                    secondsSinceFired = double.IsNegativeInfinity(r.State.LastFiredTime) ? -1f : (float)Math.Max(0, now - r.State.LastFiredTime),
+                });
+            }
+        }
+
+        /// <summary>Counts the time since the pending states were captured toward their cooldowns.</summary>
+        void AgePending()
+        {
+            double now = Engine.Clock.Now;
+            float elapsed = (float)Math.Max(0, now - pendingAsOf);
+            if (elapsed > 0f)
+                foreach (var p in pendingRuleStates)
+                    if (p.secondsSinceFired >= 0f) p.secondsSinceFired += elapsed;
+            pendingAsOf = now;
+        }
+
+        public string SaveStateJson(bool prettyPrint = false) => JsonUtility.ToJson(SaveState(), prettyPrint);
+
+        public void LoadStateJson(string json) => LoadState(JsonUtility.FromJson<DialogSaveData>(json));
 
         // ---- World facts --------------------------------------------------------------------
 

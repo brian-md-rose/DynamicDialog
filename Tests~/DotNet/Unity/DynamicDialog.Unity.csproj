@@ -24,5 +24,6 @@
     <Reference Include="UnityEngine.PhysicsModule"><HintPath>$(UnityManaged)/UnityEngine.PhysicsModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.IMGUIModule"><HintPath>$(UnityManaged)/UnityEngine.IMGUIModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(UnityManaged)/UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.JSONSerializeModule"><HintPath>$(UnityManaged)/UnityEngine.JSONSerializeModule.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 </Project>

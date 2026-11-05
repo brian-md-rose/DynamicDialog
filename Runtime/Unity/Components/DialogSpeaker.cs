@@ -70,6 +70,8 @@ namespace DynamicDialog
         DialogCharacter character;
         DialogLine current;
         DialogLineDefinition currentVariation;
+        string currentKey, currentText;
+        AudioClip currentClip;
         double endTime;
         double nextIdleTime;
         Symbol idleConceptSymbol;
@@ -82,6 +84,11 @@ namespace DynamicDialog
         public bool IsSpeaking => current != null;
         public DialogLine CurrentLine => current;
         public DialogLineDefinition CurrentVariation => currentVariation;
+
+        /// <summary>The current line's localization key, text and clip, after localization.</summary>
+        public string CurrentKey => currentKey;
+        public string CurrentText => currentText;
+        public AudioClip CurrentClip => currentClip;
 
         /// <summary>This speaker's persistent memory (shared by speakers with the same name).</summary>
         public FactMemory Memory => character?.Memory;
@@ -110,7 +117,7 @@ namespace DynamicDialog
         public void StopLine()
         {
             if (current == null) return;
-            if (audioSource != null && currentVariation != null && audioSource.clip == currentVariation.clip) audioSource.Stop();
+            if (audioSource != null && currentClip != null && audioSource.clip == currentClip) audioSource.Stop();
             Finish(completed: false);
         }
 
@@ -127,19 +134,27 @@ namespace DynamicDialog
             current = line;
             var response = line.Response as DialogResponse;
             currentVariation = response?.Pick(director.Random);
+            currentKey = null;
+            currentText = null;
+            currentClip = null;
 
             float duration = 0f;
             if (currentVariation != null)
             {
                 var v = currentVariation;
-                if (v.clip != null && audioSource != null)
+                currentKey = LineKeys.For(line.Rule.Name, response.lines.IndexOf(v), v.key, v.clip != null ? v.clip.name : null);
+                var localizer = director.Localizer;
+                currentText = localizer?.GetText(currentKey, v) ?? v.text;
+                currentClip = localizer?.GetClip(currentKey, v) ?? v.clip;
+
+                if (currentClip != null && audioSource != null)
                 {
-                    audioSource.clip = v.clip;
+                    audioSource.clip = currentClip;
                     audioSource.Play();
                 }
                 if (animator != null && !string.IsNullOrEmpty(v.animatorTrigger)) animator.SetTrigger(v.animatorTrigger);
-                duration = EstimateDuration(v);
-                if (!string.IsNullOrEmpty(v.text)) onSubtitle.Invoke(v.text);
+                duration = EstimateDuration(v.duration, currentClip, currentText);
+                if (!string.IsNullOrEmpty(currentText)) onSubtitle.Invoke(currentText);
             }
             endTime = Time.timeAsDouble + duration;
 
@@ -148,16 +163,18 @@ namespace DynamicDialog
         }
 
         /// <summary>How long a variation lasts: its set duration, else the clip's length, else an estimate from the text.</summary>
-        public float EstimateDuration(DialogLineDefinition v)
+        public float EstimateDuration(DialogLineDefinition v) =>
+            v == null ? 0f : EstimateDuration(v.duration, v.clip, v.text);
+
+        float EstimateDuration(float setDuration, AudioClip clip, string text)
         {
-            if (v == null) return 0f;
-            if (v.duration > 0f) return v.duration;
-            if (v.clip != null)
+            if (setDuration > 0f) return setDuration;
+            if (clip != null)
             {
                 float pitch = audioSource != null ? Mathf.Max(0.01f, Mathf.Abs(audioSource.pitch)) : 1f;
-                return v.clip.length / pitch;
+                return clip.length / pitch;
             }
-            if (!string.IsNullOrEmpty(v.text)) return Mathf.Max(minimumDuration, v.text.Length * secondsPerCharacter);
+            if (!string.IsNullOrEmpty(text)) return Mathf.Max(minimumDuration, text.Length * secondsPerCharacter);
             return 0f;
         }
 
@@ -166,6 +183,8 @@ namespace DynamicDialog
             var line = current;
             current = null;
             currentVariation = null;
+            currentKey = currentText = null;
+            currentClip = null;
             nextIdleTime = Math.Max(nextIdleTime, Time.timeAsDouble + idleInterval);
 
             foreach (var h in handlers) h.OnLineFinished(this, line, completed);

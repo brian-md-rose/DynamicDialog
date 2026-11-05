@@ -1,0 +1,27 @@
+{
+    "name": "DynamicDialog.Localization.Tests",
+    "rootNamespace": "DynamicDialog.Localization.Tests",
+    "references": [
+        "DynamicDialog",
+        "DynamicDialog.Core",
+        "DynamicDialog.Localization",
+        "Unity.Localization",
+        "Unity.Localization.Editor",
+        "Unity.Addressables",
+        "Unity.Addressables.Editor",
+        "Unity.ResourceManager",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": ["nunit.framework.dll"],
+    "autoReferenced": false,
+    "defineConstraints": ["UNITY_INCLUDE_TESTS", "DYNAMIC_DIALOG_LOCALIZATION"],
+    "versionDefines": [
+        { "name": "com.unity.localization", "expression": "1.0.0", "define": "DYNAMIC_DIALOG_LOCALIZATION" }
+    ],
+    "noEngineReferences": false
+}

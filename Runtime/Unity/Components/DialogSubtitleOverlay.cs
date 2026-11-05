@@ -32,7 +32,7 @@ namespace DynamicDialog
 
         void OnStarted(DialogSpeaker speaker, DialogLine line, DialogLineDefinition variation)
         {
-            string text = variation != null ? variation.text : null;
+            string text = speaker.CurrentText;
             if (string.IsNullOrEmpty(text) && !showRuleNames) return;
             showing.Add((speaker, line, text));
         }

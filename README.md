@@ -22,6 +22,7 @@ Contextual dialog driven by a rule database, following Elan Ruskin's GDC 2012 ta
 | M4 authoring (`.dlg` and spreadsheet importers, hot reload, validator, exports) | done |
 | M5 debugging (lookup recorder, Debugger window, why-not, coverage, test query, overlay) | done |
 | M6 region streaming and benchmarks | done |
+| M7 localization, save/load, sample | done |
 
 ## Install
 
@@ -97,6 +98,30 @@ then anywhere in the project. Missing clips are a warning, and the line still sh
 rule answers, conditions that contradict each other, likely typos in fact names, duplicate names, and rules that do nothing.
 List the facts your own code provides in its *Facts from code* field. Each database's inspector also has **Check Rules**,
 **Export .dlg** (to move inspector-made rules into text) and **Export Recording Script** (a CSV for voice sessions).
+
+## Localization
+
+Each line has a **key**: its `key` (`say "Hi" key GREET_1` in .dlg, a `Key` column in spreadsheets, or the inspector),
+else its audio clip's name, else `<rule>_<n>`. A localizer on the Dialog Director turns keys into translated subtitles and clips:
+
+- With the Unity Localization package installed, add **Unity Localization Localizer** to the director and name your string
+  table collection (and optionally an asset table for voice clips). Lines with no entry fall back to the authored text and clip.
+- Or implement `IDialogLocalizer` yourself and set `DialogDirector.Localizer`.
+
+The rule database inspector's **Export String Table CSV** writes every line's key and source text, plus who says it, for translators.
+
+## Saving
+
+`DialogDirector.SaveStateJson()` and `LoadStateJson(json)` save and restore world memory, every character's memory,
+and which rules have played (so `once` rules stay used and cooldowns carry over). Names are saved as text, so a save
+works across sessions. Region databases that aren't loaded keep their state too, and it is reapplied when they load.
+Lines in progress and pending followups aren't saved. `SaveState()` returns a `DialogSaveData` if you'd rather use your own serializer.
+
+## Sample
+
+In Package Manager, select Dynamic Dialog and import **Robot Banter**. Open `RobotBanter.unity` and press Play:
+two robots wander a room and talk about what they see, remember, reply to each other, and get interrupted. Every line
+is in `RobotBanter.dlg`; edit it while playing.
 
 ## Debugging
 

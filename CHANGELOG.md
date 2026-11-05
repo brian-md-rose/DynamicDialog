@@ -46,3 +46,14 @@
 - Benchmark data shared by a .NET benchmark runner (`Tests~/DotNet/Bench`) and Play Mode performance tests (zero-allocation checks for `FindBest` and `Ask`).
 ### Changed
 - The matcher loads each query into a direct-indexed fact table before testing rules: 1.33 µs down to 0.84 µs per lookup at 10,000 rules.
+
+## [0.6.0] - 2026-11-05
+### Added
+- Line keys (`say ... key X`, a `Key` spreadsheet column, `DialogLineDefinition.key`) and `LineKeys` (key, else clip name, else `<rule>_<n>`).
+- `IDialogLocalizer` and `DialogDirector.Localizer`: speakers play translated subtitles and clips, falling back to the authored ones. `DialogSpeaker.CurrentKey`, `CurrentText` and `CurrentClip`.
+- `DialogUnityLocalizer` (optional `DynamicDialog.Localization` assembly, compiled only when `com.unity.localization` is installed).
+- Export String Table CSV for translators.
+- Save/load: `DialogSaveData`, `DialogEngine.SaveState/LoadState`, and `DialogDirector.SaveStateJson/LoadStateJson`. State for unloaded region databases is kept, aged, saved, and reapplied when they load.
+- The Robot Banter sample.
+### Changed
+- The subtitle overlay shows localized text.

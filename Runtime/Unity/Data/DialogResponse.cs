@@ -20,6 +20,9 @@ namespace DynamicDialog
 
         [Tooltip("Optional Animator trigger to set on the speaker when the line starts.")]
         public string animatorTrigger;
+
+        [Tooltip("Localization key for this line's text and audio. Empty = the clip's name, else <rule>_<n>.")]
+        public string key;
     }
 
     /// <summary>What a rule does when it wins: a set of variations of one line.</summary>

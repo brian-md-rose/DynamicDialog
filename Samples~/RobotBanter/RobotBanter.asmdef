@@ -1,0 +1,14 @@
+{
+    "name": "DynamicDialog.Samples.RobotBanter",
+    "rootNamespace": "DynamicDialog.Samples",
+    "references": ["DynamicDialog", "DynamicDialog.Core"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

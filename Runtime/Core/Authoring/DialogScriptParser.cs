@@ -215,7 +215,8 @@ namespace DynamicDialog
                         case "audio": line.Audio = value; break;
                         case "duration": line.Duration = Syntax.ParseSeconds(value); break;
                         case "anim": line.Anim = value; break;
-                        default: throw new FormatException($"Unknown 'say' option '{option}'. Expected audio, duration or anim.");
+                        case "key": line.Key = value; break;
+                        default: throw new FormatException($"Unknown 'say' option '{option}'. Expected audio, duration, anim or key.");
                     }
                 }
                 if (line.Text == null && line.Audio == null) throw new FormatException("'say' needs text or audio.");
@@ -225,7 +226,7 @@ namespace DynamicDialog
             static bool IsSayOption(string word)
             {
                 string w = word.ToLowerInvariant();
-                return w == "audio" || w == "duration" || w == "anim";
+                return w == "audio" || w == "duration" || w == "anim" || w == "key";
             }
 
             void FinishRule()

@@ -32,6 +32,7 @@ namespace DynamicDialog
                     if (!string.IsNullOrEmpty(l.Audio)) sb.Append(" audio ").Append(Word(l.Audio));
                     if (l.Duration > 0f) sb.Append(" duration ").Append(Num(l.Duration)).Append('s');
                     if (!string.IsNullOrEmpty(l.Anim)) sb.Append(" anim ").Append(Word(l.Anim));
+                    if (!string.IsNullOrEmpty(l.Key)) sb.Append(" key ").Append(Word(l.Key));
                     sb.Append('\n');
                 }
                 foreach (var w in r.Writes) sb.Append("  ").Append(Write(w)).Append('\n');
@@ -71,6 +72,29 @@ namespace DynamicDialog
                       .Append(SpreadsheetParser.EscapeCell(l.Audio)).Append('\n');
                 }
             }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// A CSV for translators: one row per line with its key, source text, and who says it in which rule.
+        /// Import it into a Unity Localization string table (or any other tool) keyed by the Key column.
+        /// </summary>
+        public static string ToStringTableCsv(IEnumerable<RuleSource> rules)
+        {
+            var sb = new StringBuilder("Key,Source,Character,Rule,Concept\n");
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var r in rules)
+                for (int i = 0; i < r.Lines.Count; i++)
+                {
+                    if (string.IsNullOrEmpty(r.Lines[i].Text)) continue;
+                    string key = LineKeys.For(r, i);
+                    if (!seen.Add(key)) continue;
+                    sb.Append(SpreadsheetParser.EscapeCell(key)).Append(',')
+                      .Append(SpreadsheetParser.EscapeCell(r.Lines[i].Text)).Append(',')
+                      .Append(SpreadsheetParser.EscapeCell(r.Who)).Append(',')
+                      .Append(SpreadsheetParser.EscapeCell(r.Name)).Append(',')
+                      .Append(SpreadsheetParser.EscapeCell(r.Concept)).Append('\n');
+                }
             return sb.ToString();
         }
 
