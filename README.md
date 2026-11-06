@@ -84,6 +84,13 @@ The full grammar, including `select`, `forget`, `cooldown`, `weight`, `bonus`, `
 is documented at the top of `Runtime/Core/Authoring/DialogScriptParser.cs`. Errors show in the Console with file and line,
 and the rest of the file still imports.
 
+**Rule Editor** (**Window > Dynamic Dialog > Rule Editor**, or **Open in Rule Editor** on a `.dlg` file's inspector) edits
+`.dlg` files without typing the syntax. Names come from a **Rule Editor String Table** asset through searchable drop-downs
+(type to filter, or add a new name). Problems are re-checked as you edit, each followup shows the rules that answer it
+(with **Create Answer** when none do), and a *Links* section shows the rules that lead to a rule and the rules that set or
+check its facts. Drag rules to reorder them, group them by speaker, and copy or paste them as `.dlg` text. Saving keeps the
+file's comments: comments above a rule travel with it, and comments inside a rule move just above it.
+
 **Spreadsheets** (**Assets > Create > Dynamic Dialog > Dialog Spreadsheet**): save as CSV or TSV and name the file
 `.dlgcsv` or `.dlgtsv`. There is one row per recorded line; a row with an empty `Rule` cell adds a variation to the rule above.
 Known columns are `Rule, Who, Concept, If, Text, Audio, Duration, Anim, Remember, Then, Once, Cooldown, Weight, Bonus, Select`.

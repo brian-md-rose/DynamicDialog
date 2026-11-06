@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+### Added
+- Rule Editor window (**Window > Dynamic Dialog > Rule Editor**) for `.dlg` files, moved in from the ProjectConverse test project: searchable name pickers backed by a `DialogStringTable` asset, live problem checking, links between rules (followup answers, rules that set or check a fact), drag to reorder, group by speaker, copy and paste as `.dlg` text, undo, and a text preview.
+- Editor tests that round-trip `.dlg` files (including every `.dlg` in the project and the samples) through the Rule Editor's document model and check the rules don't change.
+
 ## [0.1.0] - 2026-11-05
 ### Added
 - Core engine: symbols, queries, interval criteria, rules, partitioned rule sets, best-match matcher with weighted tie-breaking and tracing.
