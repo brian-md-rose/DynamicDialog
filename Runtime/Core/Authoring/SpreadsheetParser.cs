@@ -31,6 +31,9 @@ namespace DynamicDialog
             Ignore, Criterion, Rule, Who, Concept, If, Text, Audio, Duration, Anim, Key, Remember, Then, Once, Cooldown, Weight, Bonus, Select,
         }
 
+        /// <summary>Reads a CSV or TSV spreadsheet. Bad cells are reported; the rest still load.</summary>
+        /// <param name="text">The file's contents.</param>
+        /// <param name="fileName">Used in messages. May be null.</param>
         /// <param name="delimiter">',' or '\t'. Pass '\0' to detect from the header row.</param>
         public static DialogSource Parse(string text, string fileName = null, char delimiter = '\0')
         {
@@ -255,7 +258,7 @@ namespace DynamicDialog
         // ---- CSV / TSV --------------------------------------------------------------------------
 
         /// <summary>RFC 4180 reader: quoted cells may hold delimiters, quotes ("") and newlines.</summary>
-        public static List<List<string>> ReadRows(string text, char delimiter = '\0')
+        internal static List<List<string>> ReadRows(string text, char delimiter = '\0')
         {
             if (text.Length > 0 && text[0] == '﻿') text = text.Substring(1);
             if (delimiter == '\0') delimiter = DetectDelimiter(text);
@@ -338,7 +341,7 @@ namespace DynamicDialog
             return tabs > commas ? '\t' : ',';
         }
 
-        public static string EscapeCell(string value, char delimiter = ',')
+        internal static string EscapeCell(string value, char delimiter = ',')
         {
             if (string.IsNullOrEmpty(value)) return "";
             bool needsQuotes = value.IndexOf(delimiter) >= 0 || value.IndexOf('"') >= 0 || value.IndexOf('\n') >= 0 || value.IndexOf('\r') >= 0

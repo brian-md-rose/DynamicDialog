@@ -12,8 +12,12 @@ namespace DynamicDialog
     [AddComponentMenu("Dynamic Dialog/Dialog Vision")]
     public class DialogVision : MonoBehaviour
     {
-        public static readonly Symbol ObjectFact = Symbol.Of("object");
-        public static readonly Symbol ObjectDistanceFact = Symbol.Of("object_distance");
+        /// <summary>Old name of <see cref="WellKnownFacts.Object"/>.</summary>
+        [System.Obsolete("Use WellKnownFacts.Object.")]
+        public static readonly Symbol ObjectFact = WellKnownFacts.Object;
+        /// <summary>Old name of <see cref="WellKnownFacts.ObjectDistance"/>.</summary>
+        [System.Obsolete("Use WellKnownFacts.ObjectDistance.")]
+        public static readonly Symbol ObjectDistanceFact = WellKnownFacts.ObjectDistance;
 
         [SerializeField] string concept = "OnSee";
         [SerializeField, Min(0.1f)] float pollInterval = 2f;
@@ -57,8 +61,8 @@ namespace DynamicDialog
                 restingUntil[tag] = now + tagCooldown;
                 var line = speaker.Speak(conceptSymbol, q =>
                 {
-                    q.Set(ObjectFact, tag.Tag);
-                    q.Set(ObjectDistanceFact, distance);
+                    q.Set(WellKnownFacts.Object, tag.Tag);
+                    q.Set(WellKnownFacts.ObjectDistance, distance);
                 });
                 if (line != null) break;
             }

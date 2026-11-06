@@ -26,9 +26,13 @@ namespace DynamicDialog
         /// <summary>Raised when the database has loaded and its rules are active.</summary>
         public event Action<DialogAddressableRegion> Loaded;
 
+        /// <summary>The database has loaded and its rules are active.</summary>
         public bool IsLoaded => loaded != null;
+        /// <summary>The database is still loading.</summary>
         public bool IsLoading => handle.IsValid() && !handle.IsDone;
+        /// <summary>The loaded database, or null.</summary>
         public DialogRuleDatabase LoadedDatabase => loaded;
+        /// <summary>The world facts this region adds while enabled.</summary>
         public RegionFacts Facts => regionFacts;
 
         /// <summary>Sets the database from code. Takes effect the next time the component is enabled.</summary>

@@ -8,7 +8,7 @@ namespace DynamicDialog.Editor
 {
     /// <summary>Inspector for rule databases: check rules, export to .dlg, export a recording script.</summary>
     [CustomEditor(typeof(DialogRuleDatabase))]
-    public class DialogRuleDatabaseEditor : UnityEditor.Editor
+    internal class DialogRuleDatabaseEditor : UnityEditor.Editor
     {
         List<AuthoringMessage> messages;
         Vector2 scroll;
@@ -19,9 +19,9 @@ namespace DynamicDialog.Editor
 
             if (db.IsImported)
             {
-                EditorGUILayout.HelpBox($"Imported from {db.sourcePath}. Edit that file; this view is read-only.", MessageType.Info);
+                EditorGUILayout.HelpBox($"Imported from {db.SourcePath}. Edit that file; this view is read-only.", MessageType.Info);
                 if (GUILayout.Button("Open Source File"))
-                    AssetDatabase.OpenAsset(AssetDatabase.LoadMainAssetAtPath(db.sourcePath));
+                    AssetDatabase.OpenAsset(AssetDatabase.LoadMainAssetAtPath(db.SourcePath));
             }
 
             EditorGUILayout.LabelField($"{db.rules.Count} rules, {db.rules.Sum(r => r?.response?.lines.Count ?? 0)} lines", EditorStyles.miniLabel);
@@ -56,7 +56,7 @@ namespace DynamicDialog.Editor
 
         internal static List<AuthoringMessage> Check(DialogRuleDatabase db)
         {
-            string label = db.IsImported ? db.sourcePath : AssetDatabase.GetAssetPath(db);
+            string label = db.IsImported ? db.SourcePath : AssetDatabase.GetAssetPath(db);
             var list = db.Validate().Select(e => new AuthoringMessage(MessageSeverity.Warning, e, label)).ToList();
             list.AddRange(RuleAnalyzer.Analyze(new[] { new RuleSourceGroup(label, db.ToSources()) }, DialogValidatorWindow.KnownFacts));
             return list.OrderByDescending(m => m.Severity).ToList();

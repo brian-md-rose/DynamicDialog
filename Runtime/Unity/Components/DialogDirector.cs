@@ -19,6 +19,7 @@ namespace DynamicDialog
     /// <summary>Game time from Unity. Stops while the game is paused with timeScale = 0.</summary>
     public sealed class UnityClock : IClock
     {
+        /// <summary><c>Time.timeAsDouble</c>.</summary>
         public double Now => Time.timeAsDouble;
     }
 
@@ -33,8 +34,12 @@ namespace DynamicDialog
     [AddComponentMenu("Dynamic Dialog/Dialog Director")]
     public class DialogDirector : MonoBehaviour, IFactProvider
     {
-        public static readonly Symbol MapFact = Symbol.Of("map");
-        public static readonly Symbol SpeakersTalkingFact = Symbol.Of("speakers_talking");
+        /// <summary>Old name of <see cref="WellKnownFacts.Map"/>.</summary>
+        [Obsolete("Use WellKnownFacts.Map.")]
+        public static readonly Symbol MapFact = WellKnownFacts.Map;
+        /// <summary>Old name of <see cref="WellKnownFacts.SpeakersTalking"/>.</summary>
+        [Obsolete("Use WellKnownFacts.SpeakersTalking.")]
+        public static readonly Symbol SpeakersTalkingFact = WellKnownFacts.SpeakersTalking;
 
         [Tooltip("Rule databases that are always loaded. Regions can load more with a DialogRegion.")]
         [SerializeField] List<DialogRuleDatabase> databases = new List<DialogRuleDatabase>();
@@ -71,8 +76,11 @@ namespace DynamicDialog
         List<RuleStateSave> pendingRuleStates = new List<RuleStateSave>();
         double pendingAsOf;
 
+        /// <summary>Rules, characters and world memory. Null until the director initializes (in Awake, or on first use of <see cref="Instance"/>).</summary>
         public DialogEngine Engine { get; private set; }
+        /// <summary>Who is speaking, and followup scheduling.</summary>
         public DialogConductor Conductor { get; private set; }
+        /// <summary>The random source for tie-breaking, "rand" and picking variations. Seeded by the Random Seed setting.</summary>
         public IRandomSource Random { get; private set; }
 
         /// <summary>Translates subtitles and voice clips. Defaults to an IDialogLocalizer component on this GameObject.</summary>
@@ -191,6 +199,7 @@ namespace DynamicDialog
             database.Changed -= OnDatabaseChanged;
         }
 
+        /// <summary>Whether the database is loaded.</summary>
         public bool IsLoaded(DialogRuleDatabase database)
         {
             database = Resolve(database);
@@ -205,7 +214,7 @@ namespace DynamicDialog
         /// .dlg or spreadsheet is reimported during Play Mode and Unity hands back a new asset object.
         /// Later calls that pass the old object are redirected to the new one.
         /// </summary>
-        public void ReplaceDatabase(DialogRuleDatabase old, DialogRuleDatabase replacement)
+        internal void ReplaceDatabase(DialogRuleDatabase old, DialogRuleDatabase replacement)
         {
             old = Resolve(old);
             if (ReferenceEquals(old, null) || replacement == null || ReferenceEquals(old, replacement)) return;
@@ -311,18 +320,20 @@ namespace DynamicDialog
             pendingAsOf = now;
         }
 
+        /// <summary><see cref="SaveState"/> as JSON (Unity's JsonUtility).</summary>
         public string SaveStateJson(bool prettyPrint = false) => JsonUtility.ToJson(SaveState(), prettyPrint);
 
+        /// <summary>Restores a save made with <see cref="SaveStateJson"/>. See <see cref="LoadState"/>.</summary>
         public void LoadStateJson(string json) => LoadState(JsonUtility.FromJson<DialogSaveData>(json));
 
         // ---- World facts --------------------------------------------------------------------
 
         void IFactProvider.AddFacts(Query query)
         {
-            query.Set(MapFact, Symbol.Of(SceneManager.GetActiveScene().name));
+            query.Set(WellKnownFacts.Map, Symbol.Of(SceneManager.GetActiveScene().name));
             int talking = 0;
             foreach (var _ in Conductor.ActiveLines) talking++;
-            query.Set(SpeakersTalkingFact, talking);
+            query.Set(WellKnownFacts.SpeakersTalking, talking);
         }
 
         // ---- Logging ------------------------------------------------------------------------

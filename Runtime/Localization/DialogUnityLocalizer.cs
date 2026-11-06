@@ -18,9 +18,12 @@ namespace DynamicDialog
         [Tooltip("Asset table collection holding localized voice clips. Empty = keep authored clips.")]
         [SerializeField] string audioTable = "";
 
+        /// <summary>The string table collection holding subtitles. Empty keeps the authored text.</summary>
         public string StringTable { get => stringTable; set => stringTable = value; }
+        /// <summary>The asset table collection holding voice clips. Empty keeps the authored clips.</summary>
         public string AudioTable { get => audioTable; set => audioTable = value; }
 
+        /// <inheritdoc/>
         public string GetText(string key, DialogLineDefinition line)
         {
             if (string.IsNullOrEmpty(stringTable) || string.IsNullOrEmpty(key) || !LocalizationSettings.HasSettings) return null;
@@ -30,6 +33,7 @@ namespace DynamicDialog
             return entry.GetLocalizedString();
         }
 
+        /// <inheritdoc/>
         public AudioClip GetClip(string key, DialogLineDefinition line)
         {
             if (string.IsNullOrEmpty(audioTable) || string.IsNullOrEmpty(key) || !LocalizationSettings.HasSettings) return null;

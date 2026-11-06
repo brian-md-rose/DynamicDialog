@@ -11,10 +11,13 @@ namespace DynamicDialog
     [AddComponentMenu("Dynamic Dialog/Static Facts")]
     public class StaticFacts : MonoBehaviour, IFactProvider
     {
+        /// <summary>One fixed fact.</summary>
         [Serializable]
         public struct Entry
         {
+            /// <summary>The fact's name.</summary>
             public string key;
+            /// <summary>A number, true/false, or a name.</summary>
             [Tooltip("A number, true/false, or a name.")]
             public string value;
         }
@@ -25,6 +28,7 @@ namespace DynamicDialog
         float[] values;
         bool[] symbols;
 
+        /// <inheritdoc/>
         public void AddFacts(Query query)
         {
             if (keys == null) Cache();

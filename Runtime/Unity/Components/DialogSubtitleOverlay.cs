@@ -20,13 +20,13 @@ namespace DynamicDialog
         void OnEnable()
         {
             DialogSpeaker.AnyLineStarted += OnStarted;
-            DialogSpeaker.AnyLineFinished += OnFinished;
+            DialogSpeaker.AnyLineEnded += OnFinished;
         }
 
         void OnDisable()
         {
             DialogSpeaker.AnyLineStarted -= OnStarted;
-            DialogSpeaker.AnyLineFinished -= OnFinished;
+            DialogSpeaker.AnyLineEnded -= OnFinished;
             showing.Clear();
         }
 

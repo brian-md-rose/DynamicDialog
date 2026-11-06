@@ -28,7 +28,7 @@ namespace DynamicDialog.Editor
                 foreach (var db in director.LoadedDatabases.ToList())
                 {
                     if (ReferenceEquals(db, fresh)) fresh.Invalidate();
-                    else if (!ReferenceEquals(db, null) && string.Equals(db.sourcePath, path, StringComparison.OrdinalIgnoreCase))
+                    else if (!ReferenceEquals(db, null) && string.Equals(db.SourcePath, path, StringComparison.OrdinalIgnoreCase))
                         director.ReplaceDatabase(db, fresh);
                 }
             }

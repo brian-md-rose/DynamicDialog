@@ -18,17 +18,23 @@ namespace DynamicDialog
         Sequential,
     }
 
+    /// <summary>How serious an <see cref="AuthoringMessage"/> is.</summary>
     public enum MessageSeverity
     {
+        /// <summary>A note; nothing is wrong.</summary>
         Info,
+        /// <summary>Probably a mistake, but the rules still load.</summary>
         Warning,
+        /// <summary>The statement or rule could not be read and was skipped.</summary>
         Error,
     }
 
     /// <summary>A problem found while reading or checking authored rules.</summary>
     public readonly struct AuthoringMessage
     {
+        /// <summary>How serious it is.</summary>
         public readonly MessageSeverity Severity;
+        /// <summary>What is wrong, in words a writer can act on.</summary>
         public readonly string Text;
 
         /// <summary>The source file, if known.</summary>
@@ -40,6 +46,7 @@ namespace DynamicDialog
         /// <summary>The rule the message is about, if any.</summary>
         public readonly string Rule;
 
+        /// <summary>Creates a message.</summary>
         public AuthoringMessage(MessageSeverity severity, string text, string file = null, int line = 0, string rule = null)
         {
             Severity = severity;
@@ -49,6 +56,7 @@ namespace DynamicDialog
             Rule = rule;
         }
 
+        /// <summary>"file(line): severity: [rule] text", Console style.</summary>
         public override string ToString()
         {
             string where = File != null ? (Line > 0 ? $"{File}({Line})" : File) : (Line > 0 ? $"line {Line}" : null);
@@ -61,41 +69,63 @@ namespace DynamicDialog
     /// <summary>An authored criterion before compilation. Values stay as text until compiled.</summary>
     public sealed class CriterionSource
     {
+        /// <summary>The fact tested.</summary>
         public string Key;
+        /// <summary>The comparison.</summary>
         public CriterionOp Op;
+        /// <summary>The value compared with, as text (the lower bound for <see cref="CriterionOp.Between"/>).</summary>
         public string Value;
+        /// <summary>The upper bound, for <see cref="CriterionOp.Between"/>.</summary>
         public string Value2;
+        /// <summary>Test <see cref="Default"/> when the fact is missing ("default" in .dlg).</summary>
         public bool HasDefault;
+        /// <summary>The value tested for a missing fact, when <see cref="HasDefault"/> is set.</summary>
         public float Default;
     }
 
+    /// <summary>One authored variation of a line ("say" in .dlg).</summary>
     public sealed class LineSource
     {
+        /// <summary>Subtitle text. Null for an audio-only line.</summary>
         public string Text;
         /// <summary>An audio clip name or path, resolved by the Unity importer.</summary>
         public string Audio;
+        /// <summary>Seconds the line lasts, or 0 for the clip's length or an estimate from the text.</summary>
         public float Duration;
+        /// <summary>Animator trigger set when the line starts.</summary>
         public string Anim;
 
         /// <summary>Localization key. Empty means: the audio clip's name, else "&lt;rule&gt;_&lt;n&gt;".</summary>
         public string Key;
     }
 
+    /// <summary>An authored fact write ("remember" or "forget" in .dlg).</summary>
     public sealed class FactWriteSource
     {
+        /// <summary>Whose memory is written.</summary>
         public FactScope Scope = FactScope.Speaker;
+        /// <summary>The character whose memory is written, for <see cref="FactScope.Character"/>.</summary>
         public string Character;
+        /// <summary>The fact written.</summary>
         public string Key;
+        /// <summary>How the fact changes.</summary>
         public FactOp Op = FactOp.Set;
+        /// <summary>The value to set, or the amount to add, as text.</summary>
         public string Value = "1";
+        /// <summary>Seconds until the fact expires. 0 means never.</summary>
         public float Duration;
     }
 
+    /// <summary>An authored followup ("then" in .dlg).</summary>
     public sealed class FollowupSource
     {
+        /// <summary>Who receives the concept.</summary>
         public FollowupTarget Target = FollowupTarget.Character;
+        /// <summary>The receiver, for <see cref="FollowupTarget.Character"/>.</summary>
         public string Character;
+        /// <summary>The concept sent.</summary>
         public string Concept;
+        /// <summary>Extra seconds to wait after the line finishes.</summary>
         public float Delay;
     }
 
@@ -105,17 +135,29 @@ namespace DynamicDialog
     /// </summary>
     public sealed class RuleSource
     {
+        /// <summary>The rule's name.</summary>
         public string Name;
+        /// <summary>Shorthand for "who == X". Empty means anyone.</summary>
         public string Who;
+        /// <summary>Shorthand for "concept == X".</summary>
         public string Concept;
+        /// <summary>Conditions ("if").</summary>
         public readonly List<CriterionSource> Criteria = new List<CriterionSource>();
+        /// <summary>How a variation is picked ("select").</summary>
         public ResponseSelection Selection = ResponseSelection.RandomNoRepeat;
+        /// <summary>Variations of the line ("say").</summary>
         public readonly List<LineSource> Lines = new List<LineSource>();
+        /// <summary>Facts written when the rule plays.</summary>
         public readonly List<FactWriteSource> Writes = new List<FactWriteSource>();
+        /// <summary>Concepts sent when the line finishes.</summary>
         public readonly List<FollowupSource> Followups = new List<FollowupSource>();
+        /// <summary>The rule plays only once.</summary>
         public bool Once;
+        /// <summary>Seconds before it can play again.</summary>
         public float Cooldown;
+        /// <summary>Relative chance among tied rules.</summary>
         public float Weight = 1f;
+        /// <summary>Added to the criteria count to make the score ("bonus").</summary>
         public int ScoreBonus;
 
         /// <summary>Where the rule starts in its source, for messages.</summary>
@@ -153,12 +195,15 @@ namespace DynamicDialog
     /// <summary>The result of reading one source file.</summary>
     public sealed class DialogSource
     {
+        /// <summary>The rules read, in file order.</summary>
         public readonly List<RuleSource> Rules = new List<RuleSource>();
+        /// <summary>Errors and warnings found while reading.</summary>
         public readonly List<AuthoringMessage> Messages = new List<AuthoringMessage>();
 
         /// <summary>Fact keys for partitioning, from a "@partition" directive. Empty means the default.</summary>
         public readonly List<string> PartitionKeys = new List<string>();
 
+        /// <summary>True when any message is an error.</summary>
         public bool HasErrors
         {
             get

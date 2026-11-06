@@ -10,6 +10,7 @@ namespace DynamicDialog
     [AddComponentMenu("Dynamic Dialog/Debug Overlay")]
     public class DialogDebugOverlay : MonoBehaviour
     {
+        /// <summary>Whether labels are drawn. Toggle it from your own debug key or menu.</summary>
         public bool visible = true;
 
         [Tooltip("Camera to project speaker positions with. Empty uses Camera.main.")]

@@ -18,7 +18,9 @@ namespace DynamicDialog
 
         DialogDirector addedTo;
 
+        /// <summary>The database this region loads.</summary>
         public DialogRuleDatabase Database => database;
+        /// <summary>The world facts this region adds while enabled.</summary>
         public RegionFacts Facts => regionFacts;
 
         void OnEnable()

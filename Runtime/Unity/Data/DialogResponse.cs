@@ -8,19 +8,24 @@ namespace DynamicDialog
     [Serializable]
     public class DialogLineDefinition
     {
+        /// <summary>Subtitle text. Also used to estimate the line's length when there is no audio.</summary>
         [Tooltip("Subtitle text. Also used to estimate the line's length when there is no audio.")]
         [TextArea(1, 4)]
         public string text;
 
+        /// <summary>The voice clip. Optional.</summary>
         public AudioClip clip;
 
+        /// <summary>Seconds the line lasts. 0 means the clip's length, or an estimate from the text.</summary>
         [Tooltip("Seconds the line lasts. 0 = the clip's length, or an estimate from the text.")]
         [Min(0f)]
         public float duration;
 
+        /// <summary>Animator trigger set on the speaker when the line starts. Optional.</summary>
         [Tooltip("Optional Animator trigger to set on the speaker when the line starts.")]
         public string animatorTrigger;
 
+        /// <summary>Localization key for the text and audio. Empty means the clip's name, else "&lt;rule&gt;_&lt;n&gt;" (see <see cref="LineKeys"/>).</summary>
         [Tooltip("Localization key for this line's text and audio. Empty = the clip's name, else <rule>_<n>.")]
         public string key;
     }
@@ -29,7 +34,9 @@ namespace DynamicDialog
     [Serializable]
     public class DialogResponse
     {
+        /// <summary>How a variation is picked each time the rule plays.</summary>
         public ResponseSelection selection = ResponseSelection.RandomNoRepeat;
+        /// <summary>The recorded variations.</summary>
         public List<DialogLineDefinition> lines = new List<DialogLineDefinition>();
 
         [NonSerialized] int lastIndex = -1;

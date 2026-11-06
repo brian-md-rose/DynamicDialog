@@ -7,9 +7,12 @@ namespace DynamicDialog
     /// <summary>A named group of rules to check, such as one file or database.</summary>
     public sealed class RuleSourceGroup
     {
+        /// <summary>The group's name, used as the file in messages.</summary>
         public readonly string Name;
+        /// <summary>The group's rules.</summary>
         public readonly IReadOnlyList<RuleSource> Rules;
 
+        /// <summary>Creates a group.</summary>
         public RuleSourceGroup(string name, IEnumerable<RuleSource> rules)
         {
             Name = name;
@@ -26,12 +29,14 @@ namespace DynamicDialog
         /// <summary>Facts the engine or the bundled components provide.</summary>
         public static readonly IReadOnlyCollection<string> BuiltInFacts = new[]
         {
-            "concept", "who", "rand", "from", "map", "speakers_talking", "object", "object_distance", "area", "nearby_speakers",
+            "concept", "who", "rand", "from", "map", "speakers_talking", "object", "object_distance", "area", "nearby_speakers", "region",
         };
 
         /// <summary>Prefixes of facts the bundled components provide, like "near_Nick".</summary>
-        public static readonly IReadOnlyCollection<string> BuiltInFactPrefixes = new[] { "near_" };
+        public static readonly IReadOnlyCollection<string> BuiltInFactPrefixes = new[] { WellKnownFacts.NearPrefix };
 
+        /// <summary>Checks every group's rules against each other and returns what it finds.</summary>
+        /// <param name="groups">The rules to check, one group per file or database.</param>
         /// <param name="knownFacts">Extra fact names your own code provides, so they aren't reported as unknown.</param>
         public static List<AuthoringMessage> Analyze(IEnumerable<RuleSourceGroup> groups, IEnumerable<string> knownFacts = null)
         {

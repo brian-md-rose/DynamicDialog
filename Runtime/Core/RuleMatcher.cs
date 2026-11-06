@@ -10,18 +10,24 @@ namespace DynamicDialog
         float NextFloat();
     }
 
+    /// <summary>An <see cref="IRandomSource"/> backed by <see cref="System.Random"/>.</summary>
     public sealed class SystemRandomSource : IRandomSource
     {
         readonly Random random;
+        /// <summary>A source with a time-based seed.</summary>
         public SystemRandomSource() { random = new Random(); }
+        /// <summary>A source that repeats the same sequence for the same seed.</summary>
         public SystemRandomSource(int seed) { random = new Random(seed); }
+        /// <inheritdoc/>
         public float NextFloat() => (float)random.NextDouble();
     }
 
     /// <summary>One rule the matcher looked at, for the debugging tools (talk slide 98).</summary>
     public readonly struct TraceEntry
     {
+        /// <summary>The rule tested.</summary>
         public readonly Rule Rule;
+        /// <summary>The set it belongs to.</summary>
         public readonly RuleSet RuleSet;
 
         /// <summary>Index into <see cref="DynamicDialog.Rule.Criteria"/> of the first failure, or -1 if all passed.</summary>
@@ -30,6 +36,7 @@ namespace DynamicDialog
         /// <summary>Skipped because of once or cooldown state.</summary>
         public readonly bool Unavailable;
 
+        /// <summary>Creates an entry.</summary>
         public TraceEntry(Rule rule, RuleSet set, int failedCriterion, bool unavailable)
         {
             Rule = rule;
@@ -38,8 +45,10 @@ namespace DynamicDialog
             Unavailable = unavailable;
         }
 
+        /// <summary>The rule was available and every criterion passed.</summary>
         public bool Passed => !Unavailable && FailedCriterion < 0;
 
+        /// <summary>The result in readable form.</summary>
         public override string ToString()
         {
             if (Unavailable) return $"{Rule}: unavailable (once/cooldown)";
@@ -48,17 +57,29 @@ namespace DynamicDialog
         }
     }
 
-    /// <summary>Optional record of one lookup: the query, every rule tested, and the winner.</summary>
+    /// <summary>
+    /// Optional record of one lookup: the query, every rule tested, and the winner.
+    /// Pass one to <see cref="RuleMatcher.FindBest"/> or set <see cref="DialogEngine.Trace"/>; the matcher fills it.
+    /// </summary>
     public sealed class MatchTrace
     {
-        public readonly List<TraceEntry> Entries = new List<TraceEntry>();
-        public Query Query;
-        public Rule Winner;
-        public int TieCount;
+        internal readonly List<TraceEntry> entries = new List<TraceEntry>();
 
-        public void Clear()
+        /// <summary>Every rule the matcher tested, in order.</summary>
+        public IReadOnlyList<TraceEntry> Entries => entries;
+
+        /// <summary>A copy of the query that was matched.</summary>
+        public Query Query { get; internal set; }
+
+        /// <summary>The rule that won, or null.</summary>
+        public Rule Winner { get; internal set; }
+
+        /// <summary>How many rules shared the winning score (the winner was picked among them at random).</summary>
+        public int TieCount { get; internal set; }
+
+        internal void Clear()
         {
-            Entries.Clear();
+            entries.Clear();
             Query = null;
             Winner = null;
             TieCount = 0;
@@ -77,19 +98,24 @@ namespace DynamicDialog
         readonly DenseFacts dense = new DenseFacts();
         readonly IRandomSource random;
 
+        /// <summary>Creates a matcher with no rule sets.</summary>
+        /// <param name="random">Breaks ties between equally specific rules. Null uses a <see cref="SystemRandomSource"/>.</param>
         public RuleMatcher(IRandomSource random = null)
         {
             this.random = random ?? new SystemRandomSource();
         }
 
+        /// <summary>The active rule sets.</summary>
         public IReadOnlyList<RuleSet> Sets => sets;
 
+        /// <summary>Activates a rule set. Adding the same set twice has no effect.</summary>
         public void Add(RuleSet set)
         {
             if (set == null) throw new ArgumentNullException(nameof(set));
             if (!sets.Contains(set)) sets.Add(set);
         }
 
+        /// <summary>Deactivates a rule set. Returns false if it wasn't active.</summary>
         public bool Remove(RuleSet set) => sets.Remove(set);
 
         /// <summary>
@@ -97,6 +123,9 @@ namespace DynamicDialog
         /// When several rules share the best score, one is picked at random, weighted by
         /// <see cref="Rule.Weight"/>.
         /// </summary>
+        /// <param name="query">The facts to match against.</param>
+        /// <param name="now">Game time, for once and cooldown checks.</param>
+        /// <param name="trace">If not null, filled with every rule tested and the winner.</param>
         public Rule FindBest(Query query, double now, MatchTrace trace = null)
         {
             if (trace != null)
@@ -122,12 +151,12 @@ namespace DynamicDialog
 
                         if (!rule.IsAvailable(now))
                         {
-                            trace?.Entries.Add(new TraceEntry(rule, set, -1, unavailable: true));
+                            trace?.entries.Add(new TraceEntry(rule, set, -1, unavailable: true));
                             continue;
                         }
 
                         int failed = dense.FirstFailedCriterion(rule);
-                        trace?.Entries.Add(new TraceEntry(rule, set, failed, unavailable: false));
+                        trace?.entries.Add(new TraceEntry(rule, set, failed, unavailable: false));
                         if (failed >= 0) continue;
 
                         if (rule.Score > bestScore)

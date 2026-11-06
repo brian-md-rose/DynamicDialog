@@ -77,7 +77,7 @@ rule NickSwamp
   then Rochelle Reply
 ");
             Assert.IsNotNull(db, "the .dlg imported as a DialogRuleDatabase");
-            Assert.AreEqual(Folder + "/swamp.dlg", db.sourcePath);
+            Assert.AreEqual(Folder + "/swamp.dlg", db.SourcePath);
             CollectionAssert.AreEqual(new[] { "concept", "who" }, db.partitionKeys);
 
             var rule = db.rules.Single();

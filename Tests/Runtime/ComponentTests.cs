@@ -234,8 +234,8 @@ namespace DynamicDialog.Tests
             var line = knight.Speak("Talk");
             Assert.AreEqual("arthur", line.Rule.Name);
             var record = director.Recorder.Latest(knight.Who);
-            Assert.AreEqual("world: RegionFacts", record.SourceOf(RegionFacts.RegionFact));
-            Assert.AreEqual("england", record.Query.FormatValueAt(Enumerable.Range(0, record.Query.Count).First(i => record.Query.KeyAt(i) == RegionFacts.RegionFact)));
+            Assert.AreEqual("world: RegionFacts", record.SourceOf(WellKnownFacts.Region));
+            Assert.AreEqual("england", record.Query.FormatValueAt(Enumerable.Range(0, record.Query.Count).First(i => record.Query.KeyAt(i) == WellKnownFacts.Region)));
             knight.StopLine();
 
             regionGo.SetActive(false);
@@ -382,9 +382,9 @@ namespace DynamicDialog.Tests
             Assert.IsTrue(records[1].Started);
             Assert.AreEqual(Symbol.Of("Rochelle"), records[2].Speaker);
             Assert.AreEqual("engine", records[2].SourceOf(WellKnownFacts.Concept));
-            Assert.AreEqual("event", records[2].SourceOf(DialogConductor.FromFact), "followups carry who sent them");
-            Assert.AreEqual("world: DialogDirector", records[2].SourceOf(DialogDirector.MapFact));
-            Assert.IsTrue(records[2].Query.IsSymbol(DialogDirector.MapFact));
+            Assert.AreEqual("event", records[2].SourceOf(WellKnownFacts.From), "followups carry who sent them");
+            Assert.AreEqual("world: DialogDirector", records[2].SourceOf(WellKnownFacts.Map));
+            Assert.IsTrue(records[2].Query.IsSymbol(WellKnownFacts.Map));
         }
 
         [UnityTest]

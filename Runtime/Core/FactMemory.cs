@@ -6,13 +6,16 @@ namespace DynamicDialog
     /// <summary>Game time in seconds. The Unity layer provides Time.time (or a pausable game clock).</summary>
     public interface IClock
     {
+        /// <summary>The current game time in seconds.</summary>
         double Now { get; }
     }
 
     /// <summary>A clock you advance by hand, for tests and tools.</summary>
     public sealed class ManualClock : IClock
     {
+        /// <summary>The current time. Set it directly or call <see cref="Advance"/>.</summary>
         public double Now { get; set; }
+        /// <summary>Moves time forward.</summary>
         public void Advance(double seconds) => Now += seconds;
     }
 
@@ -20,7 +23,9 @@ namespace DynamicDialog
     [Serializable]
     public struct FactMemoryEntry
     {
+        /// <summary>The fact's name.</summary>
         public string Key;
+        /// <summary>The fact's value (ignored on load when <see cref="SymbolValue"/> is set).</summary>
         public float Value;
 
         /// <summary>
@@ -52,13 +57,21 @@ namespace DynamicDialog
         /// <summary>Number of stored entries, including expired ones not yet purged.</summary>
         public int Count => entries.Count;
 
+        /// <summary>Stores a fact, replacing any existing value.</summary>
+        /// <param name="key">The fact.</param>
+        /// <param name="value">Its value.</param>
+        /// <param name="now">The current game time.</param>
+        /// <param name="duration">Seconds until it expires. 0 means never.</param>
+        /// <param name="isSymbol">The value is a symbol ID.</param>
         public void Set(Symbol key, float value, double now, float duration = 0f, bool isSymbol = false)
         {
             entries[key] = new Entry { Value = value, ExpiresAt = Expiry(now, duration), IsSymbol = isSymbol };
         }
 
+        /// <summary>Stores a name as a fact's value.</summary>
         public void Set(Symbol key, Symbol value, double now, float duration = 0f) => Set(key, value.AsValue, now, duration, true);
 
+        /// <summary>Stores a fact, replacing any existing value.</summary>
         public void Set(string key, float value, double now, float duration = 0f) => Set(Symbol.Of(key), value, now, duration);
 
         /// <summary>
@@ -73,10 +86,13 @@ namespace DynamicDialog
             entries[key] = new Entry { Value = value, ExpiresAt = expires };
         }
 
+        /// <summary>Forgets a fact. Returns false if it wasn't stored.</summary>
         public bool Remove(Symbol key) => entries.Remove(key);
 
+        /// <summary>Forgets every fact.</summary>
         public void Clear() => entries.Clear();
 
+        /// <summary>Gets a fact that hasn't expired. Returns false (and 0) if there is none.</summary>
         public bool TryGet(Symbol key, double now, out float value)
         {
             if (TryGetEntry(key, now, out Entry e))
@@ -88,6 +104,7 @@ namespace DynamicDialog
             return false;
         }
 
+        /// <summary>Gets a fact that hasn't expired. Returns false (and 0) if there is none.</summary>
         public bool TryGet(string key, double now, out float value) => TryGet(Symbol.Of(key), now, out value);
 
         /// <summary>Applies one write from a rule.</summary>
@@ -113,6 +130,7 @@ namespace DynamicDialog
             foreach (var k in expiredScratch) entries.Remove(k);
         }
 
+        /// <summary>Every live fact, with expiry stored as time remaining, for a save game.</summary>
         public List<FactMemoryEntry> Save(double now)
         {
             var list = new List<FactMemoryEntry>(entries.Count);

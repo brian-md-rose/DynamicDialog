@@ -6,7 +6,7 @@ namespace DynamicDialog
     /// Neighbouring-float helpers. They turn strict comparisons into inclusive ones,
     /// so every criterion becomes a closed interval (talk slide 119).
     /// </summary>
-    public static class FloatMath
+    internal static class FloatMath
     {
         /// <summary>Smallest float greater than <paramref name="x"/>.</summary>
         public static float NextUp(float x)

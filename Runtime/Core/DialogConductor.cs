@@ -8,6 +8,7 @@ namespace DynamicDialog
     /// </summary>
     public interface IDialogSpeaker
     {
+        /// <summary>The engine character this speaker talks as.</summary>
         DialogCharacter Character { get; }
 
         /// <summary>Whether the speaker can take a new line now (active, alive, not already speaking).</summary>
@@ -18,7 +19,7 @@ namespace DynamicDialog
 
         /// <summary>
         /// Start delivering a line. The speaker must later call
-        /// <see cref="DialogConductor.LineFinished"/> with this line, including when it is stopped.
+        /// <see cref="DialogConductor.EndLine"/> with this line, including when it is stopped.
         /// </summary>
         void BeginLine(DialogLine line);
 
@@ -29,10 +30,15 @@ namespace DynamicDialog
     /// <summary>One line being delivered.</summary>
     public sealed class DialogLine
     {
+        /// <summary>Unique, increasing ID for this line.</summary>
         public readonly int Id;
+        /// <summary>Who is saying it.</summary>
         public readonly IDialogSpeaker Speaker;
+        /// <summary>The lookup that produced it.</summary>
         public readonly MatchResult Match;
+        /// <summary>The concept the speaker was asked for.</summary>
         public readonly Symbol Concept;
+        /// <summary>Game time it started.</summary>
         public readonly double StartTime;
 
         internal DialogLine(int id, IDialogSpeaker speaker, MatchResult match, Symbol concept, double startTime)
@@ -44,9 +50,12 @@ namespace DynamicDialog
             StartTime = startTime;
         }
 
+        /// <summary>The winning rule.</summary>
         public Rule Rule => Match.Rule;
+        /// <summary>The winning rule's payload.</summary>
         public object Response => Match.Response;
 
+        /// <summary>"#id speaker: rule (concept)".</summary>
         public override string ToString() => $"#{Id} {Speaker.Character}: {Rule.Name} ({Concept})";
     }
 
@@ -58,8 +67,9 @@ namespace DynamicDialog
     /// </summary>
     public sealed class DialogConductor
     {
-        /// <summary>Fact a followup's receiver gets: who triggered it.</summary>
-        public static readonly Symbol FromFact = Symbol.Of("from");
+        /// <summary>Old name of <see cref="WellKnownFacts.From"/>.</summary>
+        [Obsolete("Use WellKnownFacts.From.")]
+        public static readonly Symbol FromFact = WellKnownFacts.From;
 
         struct Pending
         {
@@ -76,10 +86,11 @@ namespace DynamicDialog
         readonly List<DialogCharacter> characterScratch = new List<DialogCharacter>();
         int nextLineId = 1;
 
+        /// <summary>The engine lines are looked up in.</summary>
         public readonly DialogEngine Engine;
 
         /// <summary>If true, a followup sent to a named character needs that character to be in earshot too.</summary>
-        public bool NamedFollowupsRequireEarshot;
+        public bool NamedFollowupsRequireEarshot { get; set; }
 
         /// <summary>Raised after a line's facts are committed and the speaker has been told to start.</summary>
         public event Action<DialogLine> LineStarted;
@@ -90,21 +101,28 @@ namespace DynamicDialog
         /// <summary>Raised when a speaker was asked for a concept and nothing matched. Useful for debug logs.</summary>
         public event Action<IDialogSpeaker, Symbol> NoMatch;
 
+        /// <summary>Creates a conductor for <paramref name="engine"/>.</summary>
+        /// <exception cref="ArgumentNullException"><paramref name="engine"/> is null.</exception>
         public DialogConductor(DialogEngine engine)
         {
             Engine = engine ?? throw new ArgumentNullException(nameof(engine));
         }
 
+        /// <summary>Every registered speaker.</summary>
         public IReadOnlyList<IDialogSpeaker> Speakers => speakers;
+        /// <summary>How many followups are scheduled and not yet sent.</summary>
         public int PendingFollowupCount => pending.Count;
+        /// <summary>Lines playing now.</summary>
         public IEnumerable<DialogLine> ActiveLines => active.Values;
 
+        /// <summary>Adds a speaker, so followups can reach it. Registering twice has no effect.</summary>
         public void Register(IDialogSpeaker speaker)
         {
             if (speaker == null) throw new ArgumentNullException(nameof(speaker));
             if (!speakers.Contains(speaker)) speakers.Add(speaker);
         }
 
+        /// <summary>Removes a speaker: stops its line and drops followups it sent.</summary>
         public void Unregister(IDialogSpeaker speaker)
         {
             if (active.ContainsKey(speaker)) speaker.StopLine();
@@ -113,6 +131,7 @@ namespace DynamicDialog
             pending.RemoveAll(p => p.Source == speaker);
         }
 
+        /// <summary>The first registered speaker with this name, or null.</summary>
         public IDialogSpeaker FindSpeaker(Symbol who)
         {
             foreach (var s in speakers)
@@ -120,8 +139,10 @@ namespace DynamicDialog
             return null;
         }
 
+        /// <summary>Whether the speaker has a line playing.</summary>
         public bool IsSpeaking(IDialogSpeaker speaker) => active.ContainsKey(speaker);
 
+        /// <summary>The speaker's current line, or null.</summary>
         public DialogLine GetActiveLine(IDialogSpeaker speaker) => active.TryGetValue(speaker, out var l) ? l : null;
 
         /// <summary>
@@ -129,6 +150,11 @@ namespace DynamicDialog
         /// A busy speaker is skipped unless <paramref name="interrupt"/> is true, which stops its
         /// current line and drops that line's followups.
         /// </summary>
+        /// <param name="speaker">Who to ask.</param>
+        /// <param name="concept">What happened.</param>
+        /// <param name="eventFacts">Sets facts about this event. May be null.</param>
+        /// <param name="interrupt">Stop the speaker's current line if a new one matches.</param>
+        /// <returns>The line that started, or null.</returns>
         public DialogLine TrySpeak(IDialogSpeaker speaker, Symbol concept, Action<Query> eventFacts = null, bool interrupt = false)
         {
             if (speaker == null) return null;
@@ -137,7 +163,7 @@ namespace DynamicDialog
             if (!speaking && !speaker.IsAvailable) return null;
 
             var match = Engine.Ask(speaker.Character, concept, eventFacts);
-            if (!match.Success)
+            if (!match.Matched)
             {
                 NoMatch?.Invoke(speaker, concept);
                 return null;
@@ -146,6 +172,7 @@ namespace DynamicDialog
             return Start(speaker, match, concept);
         }
 
+        /// <summary>Asks a speaker for a line and starts it if one matches. See <see cref="TrySpeak(IDialogSpeaker, Symbol, Action{Query}, bool)"/>.</summary>
         public DialogLine TrySpeak(IDialogSpeaker speaker, string concept, Action<Query> eventFacts = null, bool interrupt = false) =>
             TrySpeak(speaker, Symbol.Of(concept), eventFacts, interrupt);
 
@@ -161,13 +188,18 @@ namespace DynamicDialog
                 characterScratch.Add(c.Character);
             }
             var match = Engine.AskBest(characterScratch, concept, eventFacts);
-            if (!match.Success) return null;
+            if (!match.Matched) return null;
             var speaker = candidateScratch[characterScratch.IndexOf(match.Speaker)];
             return Start(speaker, match, concept);
         }
 
-        /// <summary>The speaker reports that a line has ended. <paramref name="completed"/> is false when it was stopped early.</summary>
-        public void LineFinished(DialogLine line, bool completed)
+        /// <summary>
+        /// The speaker reports that a line has ended, whether it played to the end or was stopped.
+        /// Followups are scheduled only when <paramref name="completed"/> is true. Stale or repeated reports are ignored.
+        /// </summary>
+        /// <param name="line">The line passed to <see cref="IDialogSpeaker.BeginLine"/>.</param>
+        /// <param name="completed">False when the line was stopped early.</param>
+        public void EndLine(DialogLine line, bool completed)
         {
             if (line == null) return;
             if (!active.TryGetValue(line.Speaker, out var current) || current != line) return; // stale or duplicate
@@ -181,6 +213,10 @@ namespace DynamicDialog
             }
             LineEnded?.Invoke(line, completed);
         }
+
+        /// <summary>Old name of <see cref="EndLine"/>.</summary>
+        [Obsolete("Use EndLine.")]
+        public void LineFinished(DialogLine line, bool completed) => EndLine(line, completed);
 
         /// <summary>Sends every followup that is due. Call once per frame.</summary>
         public void Update()
@@ -214,7 +250,7 @@ namespace DynamicDialog
         {
             var source = p.Source;
             var f = p.Followup;
-            Action<Query> facts = q => q.Set(FromFact, source.Character.Who);
+            Action<Query> facts = q => q.Set(WellKnownFacts.From, source.Character.Who);
 
             switch (f.Target)
             {

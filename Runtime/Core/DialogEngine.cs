@@ -6,43 +6,62 @@ namespace DynamicDialog
     /// <summary>Adds facts it computes on demand (health, weapon, nearby allies, current map...) to a query.</summary>
     public interface IFactProvider
     {
+        /// <summary>Sets this provider's facts on <paramref name="query"/>. Called for every lookup, so keep it cheap.</summary>
         void AddFacts(Query query);
     }
 
     /// <summary>A character that can be asked for lines: its name, its memory, and its fact providers.</summary>
     public sealed class DialogCharacter
     {
+        /// <summary>The character's name, the "who" fact.</summary>
         public readonly Symbol Who;
+        /// <summary>What the character remembers. Rules write to it with "remember".</summary>
         public readonly FactMemory Memory = new FactMemory();
+        /// <summary>Sources of character facts computed on demand (health, inventory, ...).</summary>
         public readonly List<IFactProvider> Providers = new List<IFactProvider>();
 
+        /// <summary>Creates a character. Usually done through <see cref="DialogEngine.GetOrCreateCharacter(Symbol)"/>.</summary>
+        /// <exception cref="ArgumentException"><paramref name="who"/> is <see cref="Symbol.None"/>.</exception>
         public DialogCharacter(Symbol who)
         {
             if (who.IsNone) throw new ArgumentException("A character needs a name.", nameof(who));
             Who = who;
         }
 
+        /// <summary>The character's name.</summary>
         public override string ToString() => Who.ToString();
     }
 
     /// <summary>The outcome of asking for a line. <see cref="Rule"/> is null when nothing matched.</summary>
     public readonly struct MatchResult
     {
+        /// <summary>The winning rule, or null.</summary>
         public readonly Rule Rule;
+        /// <summary>The character who was asked.</summary>
         public readonly DialogCharacter Speaker;
 
+        /// <summary>Creates a result.</summary>
         public MatchResult(Rule rule, DialogCharacter speaker)
         {
             Rule = rule;
             Speaker = speaker;
         }
 
-        public bool Success => Rule != null;
+        /// <summary>True when a rule matched.</summary>
+        public bool Matched => Rule != null;
+
+        /// <summary>Old name of <see cref="Matched"/>.</summary>
+        [Obsolete("Use Matched.")]
+        public bool Success => Matched;
+        /// <summary>The winning rule's score, or int.MinValue when nothing matched.</summary>
         public int Score => Rule?.Score ?? int.MinValue;
+        /// <summary>The winning rule's payload, or null.</summary>
         public object Response => Rule?.Response;
+        /// <summary>The winning rule's followups, or none.</summary>
         public IReadOnlyList<Followup> Followups => Rule != null ? Rule.Followups : Array.Empty<Followup>();
 
-        public override string ToString() => Success ? $"{Speaker}: {Rule}" : "no match";
+        /// <summary>"Speaker: rule", or "no match".</summary>
+        public override string ToString() => Matched ? $"{Speaker}: {Rule}" : "no match";
     }
 
     /// <summary>
@@ -63,17 +82,25 @@ namespace DynamicDialog
         readonly Query scratch = new Query(128);
         readonly Query stage = new Query(64);
 
+        /// <summary>Game time, for expiry, cooldowns and lookups.</summary>
         public readonly IClock Clock;
+        /// <summary>The active rule sets. Add and remove sets here.</summary>
         public readonly RuleMatcher Matcher;
+        /// <summary>World memory, shared by every character.</summary>
         public readonly FactMemory World = new FactMemory();
+        /// <summary>Sources of world facts computed on demand, added to every query.</summary>
         public readonly List<IFactProvider> WorldProviders = new List<IFactProvider>();
 
         /// <summary>When set, the most recent lookup is recorded here. Leave null in shipping builds.</summary>
-        public MatchTrace Trace;
+        public MatchTrace Trace { get; set; }
 
         /// <summary>When set, every lookup is kept for the debugger, with where each fact came from.</summary>
-        public DialogRecorder Recorder;
+        public DialogRecorder Recorder { get; set; }
 
+        /// <summary>Creates an engine with no rules and no characters.</summary>
+        /// <param name="clock">Game time.</param>
+        /// <param name="random">Tie-breaking and the "rand" fact. Null uses a <see cref="SystemRandomSource"/>.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="clock"/> is null.</exception>
         public DialogEngine(IClock clock, IRandomSource random = null)
         {
             Clock = clock ?? throw new ArgumentNullException(nameof(clock));
@@ -81,24 +108,34 @@ namespace DynamicDialog
             Matcher = new RuleMatcher(this.random);
         }
 
+        /// <summary>Every character created so far.</summary>
         public IEnumerable<DialogCharacter> Characters => characters.Values;
 
+        /// <summary>The character with this name, created (with empty memory) if it doesn't exist yet.</summary>
         public DialogCharacter GetOrCreateCharacter(Symbol who)
         {
             if (!characters.TryGetValue(who, out var c)) characters[who] = c = new DialogCharacter(who);
             return c;
         }
 
+        /// <summary>The character with this name, created (with empty memory) if it doesn't exist yet.</summary>
         public DialogCharacter GetOrCreateCharacter(string who) => GetOrCreateCharacter(Symbol.Of(who));
 
+        /// <summary>Finds a character without creating it.</summary>
         public bool TryGetCharacter(Symbol who, out DialogCharacter character) => characters.TryGetValue(who, out character);
 
+        /// <summary>Forgets a character and its memory. Returns false if it didn't exist.</summary>
         public bool RemoveCharacter(Symbol who) => characters.Remove(who);
 
         /// <summary>Fills <paramref name="query"/> with every fact relevant to <paramref name="speaker"/> saying <paramref name="concept"/>.</summary>
         public void BuildQuery(Query query, DialogCharacter speaker, Symbol concept, Action<Query> eventFacts = null) =>
             BuildQuery(query, speaker, concept, eventFacts, null);
 
+        /// <summary>Like <see cref="BuildQuery(Query, DialogCharacter, Symbol, Action{Query})"/>, optionally recording where each fact came from.</summary>
+        /// <param name="query">Cleared, then filled with facts.</param>
+        /// <param name="speaker">The character being asked.</param>
+        /// <param name="concept">The concept being asked for.</param>
+        /// <param name="eventFacts">Sets facts about this event. May be null.</param>
         /// <param name="sources">If not null, filled with where each fact came from (slower; for debugging).</param>
         public void BuildQuery(Query query, DialogCharacter speaker, Symbol concept, Action<Query> eventFacts, Dictionary<Symbol, string> sources)
         {
@@ -153,6 +190,9 @@ namespace DynamicDialog
         }
 
         /// <summary>Asks one character for its best line. Nothing is committed.</summary>
+        /// <param name="speaker">The character to ask.</param>
+        /// <param name="concept">What happened, e.g. "OnSee".</param>
+        /// <param name="eventFacts">Sets facts about this event, e.g. <c>q => q.Set("object", "barrel")</c>. May be null.</param>
         public MatchResult Ask(DialogCharacter speaker, Symbol concept, Action<Query> eventFacts = null)
         {
             if (Recorder == null)
@@ -169,6 +209,7 @@ namespace DynamicDialog
             return new MatchResult(rule, speaker);
         }
 
+        /// <summary>Asks one character for its best line. Nothing is committed.</summary>
         public MatchResult Ask(DialogCharacter speaker, string concept, Action<Query> eventFacts = null) =>
             Ask(speaker, Symbol.Of(concept), eventFacts);
 
@@ -183,8 +224,8 @@ namespace DynamicDialog
             foreach (var c in candidates)
             {
                 var r = Ask(c, concept, eventFacts);
-                if (!r.Success) continue;
-                if (!best.Success || r.Score > best.Score)
+                if (!r.Matched) continue;
+                if (!best.Matched || r.Score > best.Score)
                 {
                     best = r;
                     tieCount = 1;
@@ -206,7 +247,7 @@ namespace DynamicDialog
             foreach (var c in candidates)
             {
                 var r = Ask(c, concept, eventFacts);
-                if (r.Success) results.Add(r);
+                if (r.Matched) results.Add(r);
             }
             return results;
         }
@@ -217,7 +258,7 @@ namespace DynamicDialog
         /// </summary>
         public void Commit(in MatchResult result)
         {
-            if (!result.Success) return;
+            if (!result.Matched) return;
             Recorder?.MarkStarted(result.Rule, result.Speaker.Who);
             double now = Clock.Now;
             foreach (var w in result.Rule.Writes)

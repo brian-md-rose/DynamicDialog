@@ -164,7 +164,7 @@ namespace DynamicDialog.Tests
             best = engine.AskBest(new[] { rochelle, ellis }, Symbol.Of("BuddyHurt"), nickHurt);
             Assert.AreSame(ellis, best.Speaker, "without Coach around, Ellis's generic line plays");
 
-            Assert.IsFalse(engine.AskBest(new[] { rochelle }, Symbol.Of("BuddyHurt"), nickHurt).Success);
+            Assert.IsFalse(engine.AskBest(new[] { rochelle }, Symbol.Of("BuddyHurt"), nickHurt).Matched);
         }
 
         [Test]
@@ -197,11 +197,11 @@ namespace DynamicDialog.Tests
             Assert.AreEqual(Symbol.Of("Ellis"), followup.Character);
 
             // Calm: the reply plays.
-            Assert.IsTrue(engine.Ask(ellis, followup.Concept).Success);
+            Assert.IsTrue(engine.Ask(ellis, followup.Concept).Matched);
 
             // A zombie attacks while Coach is still talking: no reply, no interruption code needed.
             zombieOnEllis = true;
-            Assert.IsFalse(engine.Ask(ellis, followup.Concept).Success);
+            Assert.IsFalse(engine.Ask(ellis, followup.Concept).Matched);
         }
 
         [Test]
@@ -223,7 +223,7 @@ namespace DynamicDialog.Tests
             var nick = engine.GetOrCreateCharacter("Nick");
             nick.Providers.Add(new LambdaProvider(q => q.Set("ammo", 50)));
 
-            Assert.IsFalse(engine.Ask(nick, "Talk").Success);
+            Assert.IsFalse(engine.Ask(nick, "Talk").Matched);
             var entry = engine.Trace.Entries.Single();
             Assert.AreEqual("ammo <= " + FloatMath.NextDown(5).ToString("G9", System.Globalization.CultureInfo.InvariantCulture),
                 entry.Rule.Criteria[entry.FailedCriterion].ToString());

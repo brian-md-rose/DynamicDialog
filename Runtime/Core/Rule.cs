@@ -17,21 +17,35 @@ namespace DynamicDialog
         Character,
     }
 
+    /// <summary>How a <see cref="FactWrite"/> changes the stored fact.</summary>
     public enum FactOp : byte
     {
+        /// <summary>Replaces the value.</summary>
         Set,
+
         /// <summary>Adds to the current value (a missing fact counts as 0).</summary>
         Add,
+
+        /// <summary>Deletes the fact.</summary>
         Remove,
     }
 
     /// <summary>A fact a rule writes back to memory when it plays (talk slides 36 and 68).</summary>
     public readonly struct FactWrite
     {
+        /// <summary>Whose memory is written.</summary>
         public readonly FactScope Scope;
+
+        /// <summary>The character whose memory is written, for <see cref="FactScope.Character"/>.</summary>
         public readonly Symbol Character;
+
+        /// <summary>The fact written.</summary>
         public readonly Symbol Key;
+
+        /// <summary>How the fact changes.</summary>
         public readonly FactOp Op;
+
+        /// <summary>The value to set, or the amount to add.</summary>
         public readonly float Value;
 
         /// <summary>Seconds until the fact expires. 0 or less means it never expires.</summary>
@@ -40,6 +54,15 @@ namespace DynamicDialog
         /// <summary>The value is a symbol (a name), so memory and tools keep treating it as one.</summary>
         public readonly bool ValueIsSymbol;
 
+        /// <summary>Creates a write.</summary>
+        /// <param name="scope">Whose memory to write.</param>
+        /// <param name="key">The fact to write.</param>
+        /// <param name="op">How to change it.</param>
+        /// <param name="value">The value to set, or the amount to add.</param>
+        /// <param name="duration">Seconds until it expires. 0 means never.</param>
+        /// <param name="character">The character, required for <see cref="FactScope.Character"/>.</param>
+        /// <param name="valueIsSymbol">The value is a name. Only kept for <see cref="FactOp.Set"/>.</param>
+        /// <exception cref="ArgumentException">A <see cref="FactScope.Character"/> write has no character.</exception>
         public FactWrite(FactScope scope, Symbol key, FactOp op, float value, float duration = 0f, Symbol character = default, bool valueIsSymbol = false)
         {
             ValueIsSymbol = valueIsSymbol && op == FactOp.Set;
@@ -53,6 +76,7 @@ namespace DynamicDialog
             Duration = duration;
         }
 
+        /// <summary>The write in readable form, e.g. "world.gossip += 1".</summary>
         public override string ToString()
         {
             string target = Scope == FactScope.Character ? Character.ToString() : Scope.ToString().ToLowerInvariant();
@@ -85,13 +109,24 @@ namespace DynamicDialog
     /// </summary>
     public readonly struct Followup
     {
+        /// <summary>Who receives the concept.</summary>
         public readonly FollowupTarget Target;
+
+        /// <summary>The receiver, for <see cref="FollowupTarget.Character"/>.</summary>
         public readonly Symbol Character;
+
+        /// <summary>The concept the receiver is asked for.</summary>
         public readonly Symbol Concept;
 
         /// <summary>Extra seconds to wait after the line finishes.</summary>
         public readonly float Delay;
 
+        /// <summary>Creates a followup.</summary>
+        /// <param name="target">Who receives it.</param>
+        /// <param name="concept">The concept to send.</param>
+        /// <param name="character">The receiver, required for <see cref="FollowupTarget.Character"/>.</param>
+        /// <param name="delay">Extra seconds to wait after the line finishes.</param>
+        /// <exception cref="ArgumentException">The concept is missing, or a character followup names no character.</exception>
         public Followup(FollowupTarget target, Symbol concept, Symbol character = default, float delay = 0f)
         {
             if (target == FollowupTarget.Character && character.IsNone)
@@ -103,6 +138,7 @@ namespace DynamicDialog
             Delay = delay;
         }
 
+        /// <summary>The followup in .dlg form, e.g. "then Rochelle Reply after 1s".</summary>
         public override string ToString()
         {
             string who = Target == FollowupTarget.Character ? Character.ToString() : Target.ToString().ToLowerInvariant();
@@ -110,22 +146,33 @@ namespace DynamicDialog
         }
     }
 
+    /// <summary>Options on a rule.</summary>
     [Flags]
     public enum RuleFlags : byte
     {
+        /// <summary>No options.</summary>
         None = 0,
 
         /// <summary>The rule disables itself after it plays once (talk slide 142).</summary>
         Once = 1,
     }
 
-    /// <summary>Mutable per-session state for a rule. Saved and restored by rule name.</summary>
+    /// <summary>
+    /// Per-session state for a rule: whether a once rule has been used, how often it played, and when.
+    /// Saved and restored by rule name. The engine updates it; game code reads it.
+    /// </summary>
     public sealed class RuleRuntimeState
     {
-        public bool Disabled;
-        public int TimesFired;
-        public double LastFiredTime = double.NegativeInfinity;
+        /// <summary>True once a <see cref="RuleFlags.Once"/> rule has played.</summary>
+        public bool Disabled { get; internal set; }
 
+        /// <summary>How many times the rule has played this session.</summary>
+        public int TimesFired { get; internal set; }
+
+        /// <summary>Game time the rule last played, or negative infinity if it never has.</summary>
+        public double LastFiredTime { get; internal set; } = double.NegativeInfinity;
+
+        /// <summary>Forgets that the rule ever played.</summary>
         public void Reset()
         {
             Disabled = false;
@@ -141,16 +188,19 @@ namespace DynamicDialog
     /// </summary>
     public sealed class Rule
     {
+        /// <summary>The rule's name. Save data and the debugger identify rules by it.</summary>
         public readonly string Name;
 
         /// <summary>Sorted by key ID so they can be checked against a query in one pass.</summary>
         public readonly Criterion[] Criteria;
 
+        /// <summary>The number of criteria plus any score bonus. Higher scores win.</summary>
         public readonly int Score;
 
         /// <summary>Relative chance when several rules tie on score. Default 1.</summary>
         public readonly float Weight;
 
+        /// <summary>Options, such as <see cref="RuleFlags.Once"/>.</summary>
         public readonly RuleFlags Flags;
 
         /// <summary>Seconds after playing before the rule can match again. 0 means no cooldown.</summary>
@@ -159,11 +209,26 @@ namespace DynamicDialog
         /// <summary>Whatever the game does when this rule wins: a response group, an action list, and so on.</summary>
         public readonly object Response;
 
+        /// <summary>Facts written to memory when the rule plays.</summary>
         public readonly FactWrite[] Writes;
+
+        /// <summary>Concepts sent when the rule's line finishes.</summary>
         public readonly Followup[] Followups;
 
+        /// <summary>Once and cooldown state for this session.</summary>
         public readonly RuleRuntimeState State = new RuleRuntimeState();
 
+        /// <summary>Creates a rule. <see cref="RuleBuilder"/> is usually easier.</summary>
+        /// <param name="name">The rule's name.</param>
+        /// <param name="criteria">Conditions that must all pass.</param>
+        /// <param name="response">The payload returned when the rule wins.</param>
+        /// <param name="writes">Facts written when it plays.</param>
+        /// <param name="followups">Concepts sent when its line finishes.</param>
+        /// <param name="flags">Options, such as <see cref="RuleFlags.Once"/>.</param>
+        /// <param name="cooldown">Seconds before it can play again.</param>
+        /// <param name="weight">Relative chance among tied rules. Negative values count as 0.</param>
+        /// <param name="scoreBonus">Added to the criteria count to make the score.</param>
+        /// <exception cref="ArgumentException">A criterion has no key.</exception>
         public Rule(string name, IEnumerable<Criterion> criteria, object response = null,
             IEnumerable<FactWrite> writes = null, IEnumerable<Followup> followups = null,
             RuleFlags flags = RuleFlags.None, float cooldown = 0f, float weight = 1f, int scoreBonus = 0)
@@ -210,13 +275,14 @@ namespace DynamicDialog
         }
 
         /// <summary>Records that the rule played.</summary>
-        public void MarkFired(double now)
+        internal void MarkFired(double now)
         {
             State.TimesFired++;
             State.LastFiredTime = now;
             if ((Flags & RuleFlags.Once) != 0) State.Disabled = true;
         }
 
+        /// <summary>The name and score, e.g. "NickSwampIntro (score 5)".</summary>
         public override string ToString() => $"{Name} (score {Score})";
     }
 
@@ -233,44 +299,68 @@ namespace DynamicDialog
         float weight = 1f;
         int scoreBonus;
 
+        /// <summary>Starts a rule called <paramref name="name"/>.</summary>
         public RuleBuilder(string name) { this.name = name; }
 
+        /// <summary>Adds "who == <paramref name="who"/>".</summary>
         public RuleBuilder Who(string who) => Where(Criterion.Eq(WellKnownFacts.Who, Symbol.Of(who)));
+
+        /// <summary>Adds "concept == <paramref name="concept"/>".</summary>
         public RuleBuilder Concept(string concept) => Where(Criterion.Eq(WellKnownFacts.Concept, Symbol.Of(concept)));
+
+        /// <summary>Adds a criterion.</summary>
         public RuleBuilder Where(Criterion criterion) { criteria.Add(criterion); return this; }
 
+        /// <summary>Sets the payload returned when the rule wins.</summary>
         public RuleBuilder Response(object payload) { response = payload; return this; }
 
+        /// <summary>Sets a fact in the speaker's memory when the rule plays.</summary>
         public RuleBuilder Remember(string key, float value, float duration = 0f) =>
             Write(new FactWrite(FactScope.Speaker, Symbol.Of(key), FactOp.Set, value, duration));
 
+        /// <summary>Sets a fact in world memory when the rule plays.</summary>
         public RuleBuilder RememberWorld(string key, float value, float duration = 0f) =>
             Write(new FactWrite(FactScope.World, Symbol.Of(key), FactOp.Set, value, duration));
 
+        /// <summary>Adds <paramref name="amount"/> to a fact in the speaker's memory when the rule plays.</summary>
         public RuleBuilder Increment(string key, float amount = 1f) =>
             Write(new FactWrite(FactScope.Speaker, Symbol.Of(key), FactOp.Add, amount));
 
+        /// <summary>Adds any fact write.</summary>
         public RuleBuilder Write(FactWrite write) { writes.Add(write); return this; }
 
+        /// <summary>Sends <paramref name="concept"/> to <paramref name="character"/> when the line finishes.</summary>
         public RuleBuilder Then(string character, string concept, float delay = 0f) =>
             Then(new Followup(FollowupTarget.Character, Symbol.Of(concept), Symbol.Of(character), delay));
 
+        /// <summary>Sends <paramref name="concept"/> back to the speaker when the line finishes.</summary>
         public RuleBuilder ThenSelf(string concept, float delay = 0f) =>
             Then(new Followup(FollowupTarget.Self, Symbol.Of(concept), default, delay));
 
+        /// <summary>Sends <paramref name="concept"/> to everyone in earshot; the best reply plays.</summary>
         public RuleBuilder ThenAny(string concept, float delay = 0f) =>
             Then(new Followup(FollowupTarget.Any, Symbol.Of(concept), default, delay));
 
+        /// <summary>Sends <paramref name="concept"/> to everyone in earshot; each one with a match plays.</summary>
         public RuleBuilder ThenAll(string concept, float delay = 0f) =>
             Then(new Followup(FollowupTarget.All, Symbol.Of(concept), default, delay));
 
+        /// <summary>Adds any followup.</summary>
         public RuleBuilder Then(Followup followup) { followups.Add(followup); return this; }
 
+        /// <summary>The rule can play only once.</summary>
         public RuleBuilder Once() { flags |= RuleFlags.Once; return this; }
+
+        /// <summary>Seconds after playing before the rule can match again.</summary>
         public RuleBuilder Cooldown(float seconds) { cooldown = seconds; return this; }
+
+        /// <summary>Relative chance when the rule ties with others on score.</summary>
         public RuleBuilder Weight(float w) { weight = w; return this; }
+
+        /// <summary>Added to the criteria count to make the score.</summary>
         public RuleBuilder ScoreBonus(int bonus) { scoreBonus = bonus; return this; }
 
+        /// <summary>Creates the rule.</summary>
         public Rule Build() => new Rule(name, criteria, response, writes, followups, flags, cooldown, weight, scoreBonus);
     }
 }

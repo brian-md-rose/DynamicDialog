@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.Serialization;
 
 namespace DynamicDialog
 {
@@ -11,11 +12,19 @@ namespace DynamicDialog
     /// </summary>
     public interface IDialogLineHandler
     {
+        /// <summary>A line started on <paramref name="speaker"/>.</summary>
+        /// <param name="speaker">The speaker.</param>
+        /// <param name="line">The line.</param>
         /// <param name="variation">The chosen variation, or null when the rule's payload isn't a <see cref="DialogResponse"/>.</param>
         void OnLineStarted(DialogSpeaker speaker, DialogLine line, DialogLineDefinition variation);
-        void OnLineFinished(DialogSpeaker speaker, DialogLine line, bool completed);
+        /// <summary>The speaker's line ended.</summary>
+        /// <param name="speaker">The speaker.</param>
+        /// <param name="line">The line.</param>
+        /// <param name="completed">False when it was stopped early (interrupted, disabled, or <see cref="DialogSpeaker.StopLine"/>).</param>
+        void OnLineEnded(DialogSpeaker speaker, DialogLine line, bool completed);
     }
 
+    /// <summary>A UnityEvent that passes a line's subtitle text.</summary>
     [Serializable] public class DialogTextEvent : UnityEvent<string> { }
 
     /// <summary>
@@ -33,6 +42,7 @@ namespace DynamicDialog
         [Tooltip("How far away this speaker can hear others, for 'then any' and 'then all' followups.")]
         [SerializeField, Min(0f)] float earshotRadius = 15f;
 
+        /// <summary>Set to false while the character can't talk (dead, gagged, in a cutscene).</summary>
         [Tooltip("Set to false while the character can't talk (dead, gagged, in a cutscene).")]
         public bool canSpeak = true;
 
@@ -53,15 +63,32 @@ namespace DynamicDialog
         [Tooltip("Random extra time added to each idle interval, so speakers don't poll in sync.")]
         [SerializeField, Min(0f)] float idleJitter = 2f;
 
+        /// <summary>Raised with the subtitle text when a line starts.</summary>
         [Header("Events")]
         [Tooltip("Raised with the subtitle text when a line starts.")]
         public DialogTextEvent onSubtitle = new DialogTextEvent();
+        /// <summary>Raised when a line ends, whether it completed or was stopped.</summary>
         [Tooltip("Raised when a line ends, whether it completed or was stopped.")]
-        public UnityEvent onLineFinished = new UnityEvent();
+        [FormerlySerializedAs("onLineFinished")]
+        public UnityEvent onLineEnded = new UnityEvent();
 
-        /// <summary>Raised for every speaker. Handy for a single subtitle UI.</summary>
+        /// <summary>Old name of <see cref="onLineEnded"/>.</summary>
+        [Obsolete("Use onLineEnded.")]
+        public UnityEvent onLineFinished => onLineEnded;
+
+        /// <summary>Raised when any speaker's line starts. Handy for a single subtitle UI.</summary>
+        /// <remarks>The variation is null when the rule's payload isn't a <see cref="DialogResponse"/>.</remarks>
         public static event Action<DialogSpeaker, DialogLine, DialogLineDefinition> AnyLineStarted;
-        public static event Action<DialogSpeaker, DialogLine, bool> AnyLineFinished;
+        /// <summary>Raised when any speaker's line ends. The bool is false if it was stopped early.</summary>
+        public static event Action<DialogSpeaker, DialogLine, bool> AnyLineEnded;
+
+        /// <summary>Old name of <see cref="AnyLineEnded"/>.</summary>
+        [Obsolete("Use AnyLineEnded.")]
+        public static event Action<DialogSpeaker, DialogLine, bool> AnyLineFinished
+        {
+            add => AnyLineEnded += value;
+            remove => AnyLineEnded -= value;
+        }
 
         readonly List<IFactProvider> providers = new List<IFactProvider>();
         readonly List<IDialogLineHandler> handlers = new List<IDialogLineHandler>();
@@ -78,26 +105,36 @@ namespace DynamicDialog
 
         /// <summary>The character name: <c>who</c>, or the GameObject name when that is empty.</summary>
         public Symbol Who => character != null ? character.Who : Symbol.Of(string.IsNullOrWhiteSpace(who) ? gameObject.name : who.Trim());
+        /// <summary>The engine character, or null while the speaker isn't registered with a director.</summary>
         public DialogCharacter Character => character;
+        /// <summary>The director this speaker is registered with, or null.</summary>
         public DialogDirector Director => director;
+        /// <summary>How far away this speaker can hear others, for "then any" and "then all".</summary>
         public float EarshotRadius { get => earshotRadius; set => earshotRadius = Mathf.Max(0f, value); }
+        /// <summary>Whether a line is playing.</summary>
         public bool IsSpeaking => current != null;
+        /// <summary>The line playing, or null.</summary>
         public DialogLine CurrentLine => current;
+        /// <summary>The variation playing, or null.</summary>
         public DialogLineDefinition CurrentVariation => currentVariation;
 
-        /// <summary>The current line's localization key, text and clip, after localization.</summary>
+        /// <summary>The current line's localization key.</summary>
         public string CurrentKey => currentKey;
+        /// <summary>The current line's subtitle, after localization.</summary>
         public string CurrentText => currentText;
+        /// <summary>The current line's clip, after localization.</summary>
         public AudioClip CurrentClip => currentClip;
 
         /// <summary>This speaker's persistent memory (shared by speakers with the same name).</summary>
         public FactMemory Memory => character?.Memory;
 
+        /// <summary>Whether the speaker can take a new line now: enabled, <see cref="canSpeak"/>, registered and not speaking.</summary>
         public bool IsAvailable => isActiveAndEnabled && canSpeak && current == null && character != null;
 
         // ---- Speaking -------------------------------------------------------------------------
 
         /// <summary>Asks for a line about <paramref name="concept"/> and plays it if a rule matches.</summary>
+        /// <param name="concept">What happened, e.g. "OnHurt".</param>
         /// <param name="eventFacts">Facts about this event, e.g. <c>q => q.Set("object", "barrel")</c>.</param>
         /// <param name="interrupt">Stop the current line (dropping its followups) if a new line matches.</param>
         /// <returns>The line that started, or null.</returns>
@@ -107,6 +144,7 @@ namespace DynamicDialog
             return director.Conductor.TrySpeak(this, concept, eventFacts, interrupt);
         }
 
+        /// <summary>Asks for a line about <paramref name="concept"/> and plays it if a rule matches.</summary>
         public DialogLine Speak(string concept, Action<Query> eventFacts = null, bool interrupt = false) =>
             Speak(Symbol.Of(concept), eventFacts, interrupt);
 
@@ -123,6 +161,7 @@ namespace DynamicDialog
 
         // ---- IDialogSpeaker -------------------------------------------------------------------
 
+        /// <summary>Whether <paramref name="source"/> is within <see cref="EarshotRadius"/>.</summary>
         public bool CanHear(IDialogSpeaker source)
         {
             if (!(source is Component c) || c == null) return false;
@@ -187,10 +226,10 @@ namespace DynamicDialog
             currentClip = null;
             nextIdleTime = Math.Max(nextIdleTime, Time.timeAsDouble + idleInterval);
 
-            foreach (var h in handlers) h.OnLineFinished(this, line, completed);
-            onLineFinished.Invoke();
-            AnyLineFinished?.Invoke(this, line, completed);
-            director?.Conductor?.LineFinished(line, completed);
+            foreach (var h in handlers) h.OnLineEnded(this, line, completed);
+            onLineEnded.Invoke();
+            AnyLineEnded?.Invoke(this, line, completed);
+            director?.Conductor?.EndLine(line, completed);
         }
 
         // ---- Lifecycle ------------------------------------------------------------------------

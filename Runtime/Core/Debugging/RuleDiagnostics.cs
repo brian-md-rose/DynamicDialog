@@ -4,6 +4,7 @@ using System.Linq;
 
 namespace DynamicDialog
 {
+    /// <summary>The outcome of a rule for one query, as <see cref="RuleDiagnostics"/> explains it.</summary>
     public enum RuleVerdict
     {
         /// <summary>The rule won.</summary>
@@ -28,14 +29,18 @@ namespace DynamicDialog
     /// <summary>Why a rule did or didn't play for a query, in words a writer can act on.</summary>
     public readonly struct RuleExplanation
     {
+        /// <summary>The rule explained.</summary>
         public readonly Rule Rule;
+        /// <summary>What happened to it.</summary>
         public readonly RuleVerdict Verdict;
 
         /// <summary>Index into the rule's criteria of the failed condition, or -1.</summary>
         public readonly int FailedCriterion;
 
+        /// <summary>The explanation, in words a writer can act on.</summary>
         public readonly string Text;
 
+        /// <summary>Creates an explanation.</summary>
         public RuleExplanation(Rule rule, RuleVerdict verdict, int failedCriterion, string text)
         {
             Rule = rule;
@@ -44,14 +49,20 @@ namespace DynamicDialog
             Text = text;
         }
 
+        /// <summary>True when every condition passed (it won, tied, or was outscored).</summary>
         public bool Matched => Verdict == RuleVerdict.Won || Verdict == RuleVerdict.LostTie || Verdict == RuleVerdict.Outscored;
 
+        /// <summary>"rule: text".</summary>
         public override string ToString() => $"{Rule.Name}: {Text}";
     }
 
     /// <summary>Answers "why didn't my line play?" against a recorded or hand-made query.</summary>
     public static class RuleDiagnostics
     {
+        /// <summary>Explains why <paramref name="rule"/> did or didn't play for <paramref name="query"/>.</summary>
+        /// <param name="rule">The rule to explain.</param>
+        /// <param name="query">The facts it was matched against.</param>
+        /// <param name="now">Game time of the lookup, for once and cooldown.</param>
         /// <param name="winner">The rule that actually won, if any.</param>
         /// <param name="loaded">Whether the rule's set was active for this lookup.</param>
         /// <param name="wasUnavailable">Whether once/cooldown state blocked it at the time. Null means use its current state.</param>
