@@ -146,6 +146,76 @@ namespace DynamicDialog
         }
     }
 
+    /// <summary>When a rule's <see cref="DialogEvent"/> is raised.</summary>
+    public enum DialogEventTiming : byte
+    {
+        /// <summary>When the line starts, right after the rule's facts are written. The default.</summary>
+        LineStarted,
+
+        /// <summary>When the line ends, if it played to the end ("do Name at end" in .dlg). Dropped if the line is stopped early, like followups.</summary>
+        LineEnded,
+    }
+
+    /// <summary>
+    /// A named game event a rule raises when it plays ("do GiveItem glasses" in .dlg), so game code can
+    /// react to dialog without matching rule names. Arguments are plain text; use <see cref="Arg"/>,
+    /// <see cref="FloatArg"/> or <see cref="IntArg"/> to read them.
+    /// </summary>
+    public readonly struct DialogEvent
+    {
+        static readonly string[] NoArgs = Array.Empty<string>();
+        readonly string[] args;
+
+        /// <summary>The event's name, e.g. "GiveItem". Handlers match it ignoring case.</summary>
+        public readonly string Name;
+
+        /// <summary>When the event is raised.</summary>
+        public readonly DialogEventTiming Timing;
+
+        /// <summary>Creates an event.</summary>
+        /// <param name="name">The event's name.</param>
+        /// <param name="args">Its arguments, as text. May be null.</param>
+        /// <param name="timing">When it is raised.</param>
+        /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
+        public DialogEvent(string name, IEnumerable<string> args = null, DialogEventTiming timing = DialogEventTiming.LineStarted)
+        {
+            if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("An event needs a name.", nameof(name));
+            Name = name.Trim();
+            this.args = args?.Select(a => a ?? "").ToArray() ?? NoArgs;
+            Timing = timing;
+        }
+
+        /// <summary>The arguments, as written.</summary>
+        public IReadOnlyList<string> Args => args ?? NoArgs;
+
+        /// <summary>How many arguments there are.</summary>
+        public int ArgCount => args?.Length ?? 0;
+
+        /// <summary>Argument <paramref name="index"/>, or <paramref name="fallback"/> if there are fewer arguments.</summary>
+        public string Arg(int index, string fallback = null) =>
+            args != null && index >= 0 && index < args.Length ? args[index] : fallback;
+
+        /// <summary>Argument <paramref name="index"/> as a number, or <paramref name="fallback"/> if it is missing or not a number.</summary>
+        public float FloatArg(int index, float fallback = 0f) =>
+            float.TryParse(Arg(index), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v) ? v : fallback;
+
+        /// <summary>Argument <paramref name="index"/> as a whole number, or <paramref name="fallback"/> if it is missing or not one.</summary>
+        public int IntArg(int index, int fallback = 0) =>
+            int.TryParse(Arg(index), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int v) ? v : fallback;
+
+        /// <summary>Whether this event is called <paramref name="name"/> (ignoring case).</summary>
+        public bool Is(string name) => string.Equals(Name, name?.Trim(), StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>The event in .dlg form, e.g. "do GiveItem glasses" or "do StartWalking at end".</summary>
+        public override string ToString()
+        {
+            var sb = new System.Text.StringBuilder("do ").Append(Name);
+            foreach (var a in Args) sb.Append(' ').Append(a.Length == 0 || a.Any(char.IsWhiteSpace) ? "\"" + a + "\"" : a);
+            if (Timing == DialogEventTiming.LineEnded) sb.Append(" at end");
+            return sb.ToString();
+        }
+    }
+
     /// <summary>Options on a rule.</summary>
     [Flags]
     public enum RuleFlags : byte
@@ -215,6 +285,9 @@ namespace DynamicDialog
         /// <summary>Concepts sent when the rule's line finishes.</summary>
         public readonly Followup[] Followups;
 
+        /// <summary>Game events raised when the rule plays ("do" in .dlg), in authored order.</summary>
+        public readonly DialogEvent[] Events;
+
         /// <summary>Once and cooldown state for this session.</summary>
         public readonly RuleRuntimeState State = new RuleRuntimeState();
 
@@ -228,11 +301,14 @@ namespace DynamicDialog
         /// <param name="cooldown">Seconds before it can play again.</param>
         /// <param name="weight">Relative chance among tied rules. Negative values count as 0.</param>
         /// <param name="scoreBonus">Added to the criteria count to make the score.</param>
+        /// <param name="events">Game events raised when it plays.</param>
         /// <exception cref="ArgumentException">A criterion has no key.</exception>
         public Rule(string name, IEnumerable<Criterion> criteria, object response = null,
             IEnumerable<FactWrite> writes = null, IEnumerable<Followup> followups = null,
-            RuleFlags flags = RuleFlags.None, float cooldown = 0f, float weight = 1f, int scoreBonus = 0)
+            RuleFlags flags = RuleFlags.None, float cooldown = 0f, float weight = 1f, int scoreBonus = 0,
+            IEnumerable<DialogEvent> events = null)
         {
+            Events = events?.ToArray() ?? Array.Empty<DialogEvent>();
             Name = string.IsNullOrEmpty(name) ? "<unnamed>" : name;
             // OrderBy is a stable sort, so criteria sharing a key keep their authored order.
             Criteria = (criteria ?? Enumerable.Empty<Criterion>()).OrderBy(c => c.Key.Id).ToArray();
@@ -293,6 +369,7 @@ namespace DynamicDialog
         readonly List<Criterion> criteria = new List<Criterion>();
         readonly List<FactWrite> writes = new List<FactWrite>();
         readonly List<Followup> followups = new List<Followup>();
+        readonly List<DialogEvent> events = new List<DialogEvent>();
         object response;
         RuleFlags flags;
         float cooldown;
@@ -348,6 +425,15 @@ namespace DynamicDialog
         /// <summary>Adds any followup.</summary>
         public RuleBuilder Then(Followup followup) { followups.Add(followup); return this; }
 
+        /// <summary>Raises the game event <paramref name="name"/> when the line starts.</summary>
+        public RuleBuilder Do(string name, params string[] args) => Do(new DialogEvent(name, args));
+
+        /// <summary>Raises the game event <paramref name="name"/> when the line ends, if it played to the end.</summary>
+        public RuleBuilder DoAtEnd(string name, params string[] args) => Do(new DialogEvent(name, args, DialogEventTiming.LineEnded));
+
+        /// <summary>Adds any game event.</summary>
+        public RuleBuilder Do(DialogEvent dialogEvent) { events.Add(dialogEvent); return this; }
+
         /// <summary>The rule can play only once.</summary>
         public RuleBuilder Once() { flags |= RuleFlags.Once; return this; }
 
@@ -361,6 +447,6 @@ namespace DynamicDialog
         public RuleBuilder ScoreBonus(int bonus) { scoreBonus = bonus; return this; }
 
         /// <summary>Creates the rule.</summary>
-        public Rule Build() => new Rule(name, criteria, response, writes, followups, flags, cooldown, weight, scoreBonus);
+        public Rule Build() => new Rule(name, criteria, response, writes, followups, flags, cooldown, weight, scoreBonus, events);
     }
 }

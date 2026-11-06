@@ -39,6 +39,7 @@ namespace DynamicDialog
                     sb.Append('\n');
                 }
                 foreach (var w in r.Writes) sb.Append("  ").Append(Write(w)).Append('\n');
+                foreach (var e in r.Events) sb.Append("  ").Append(Do(e)).Append('\n');
                 foreach (var f in r.Followups)
                 {
                     string target = f.Target == FollowupTarget.Character ? Word(f.Character) : f.Target.ToString().ToLowerInvariant();
@@ -136,6 +137,20 @@ namespace DynamicDialog
             string s = $"remember {scope}{Word(w.Key)} {op} {value}";
             if (w.Duration > 0f) s += $" for {Num(w.Duration)}s";
             return s;
+        }
+
+        /// <summary>A "do" statement. Arguments that would read as timing or punctuation are quoted.</summary>
+        internal static string Do(DialogEventSource e)
+        {
+            var sb = new StringBuilder("do ").Append(Word(e.Name));
+            foreach (var a in e.Args)
+            {
+                sb.Append(' ');
+                bool reserved = string.Equals(a, "at", StringComparison.OrdinalIgnoreCase) || string.Equals(a, "and", StringComparison.OrdinalIgnoreCase);
+                sb.Append(reserved ? Quote(a) : Word(a));
+            }
+            if (e.Timing == DialogEventTiming.LineEnded) sb.Append(" at end");
+            return sb.ToString();
         }
 
         static string Selection(ResponseSelection s)

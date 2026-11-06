@@ -20,6 +20,8 @@ namespace DynamicDialog.Editor
         Animations,
         /// <summary>Audio clip names.</summary>
         Audio,
+        /// <summary>Game event names, used by "do".</summary>
+        Events,
     }
 
     /// <summary>
@@ -56,6 +58,10 @@ namespace DynamicDialog.Editor
         [Tooltip("Audio clip names: used by 'say ... audio <Name>'.")]
         public List<string> audio = new List<string>();
 
+        /// <summary>Game event names, used by "do &lt;Event&gt; ...".</summary>
+        [Tooltip("Game events: used by 'do <Event> ...'. Your code listens for them with DialogEvents.On or a Dialog Event Listener.")]
+        public List<string> events = new List<string>();
+
         /// <summary>The list of names for a category.</summary>
         public List<string> Get(DialogStringCategory category)
         {
@@ -67,6 +73,7 @@ namespace DynamicDialog.Editor
                 case DialogStringCategory.Values: return values ??= new List<string>();
                 case DialogStringCategory.Animations: return animations ??= new List<string>();
                 case DialogStringCategory.Audio: return audio ??= new List<string>();
+                case DialogStringCategory.Events: return events ??= new List<string>();
                 default: throw new ArgumentOutOfRangeException(nameof(category));
             }
         }
@@ -94,6 +101,7 @@ namespace DynamicDialog.Editor
                 case DialogStringCategory.Values: return "Fact values that are names rather than numbers, e.g. 'garden' in 'if area == garden'.";
                 case DialogStringCategory.Animations: return "Animation triggers, used by 'say ... anim <Name>'.";
                 case DialogStringCategory.Audio: return "Audio clip names, used by 'say ... audio <Name>'.";
+                case DialogStringCategory.Events: return "Game events, used by 'do <Event> ...'. Code listens with DialogEvents.On or a Dialog Event Listener.";
                 default: return "";
             }
         }

@@ -35,6 +35,9 @@ rule Hello
   forget old_fact
   then Player PlayerIntroduces after 0.3s
   then any OnGreeted
+  do GiveItem glasses
+  do Shout ""two words"" ""at"" end ""a#b""
+  do StartWalking at end
   once
   cooldown 10
   weight 2
@@ -87,6 +90,41 @@ rule JunSees  # comment inside a rule
             {
                 Object.DestroyImmediate(first);
                 if (second != null) Object.DestroyImmediate(second);
+            }
+        }
+
+        [Test]
+        public void EventsLoadIntoTheEditor_AndEditsAreSaved()
+        {
+            var doc = DlgDocument.Load("kitchen.dlg", Kitchen, out _);
+            try
+            {
+                var events = doc.rules[0].events;
+                Assert.AreEqual(3, events.Count);
+                Assert.AreEqual("GiveItem", events[0].name);
+                Assert.AreEqual("glasses", events[0].args);
+                Assert.AreEqual(DialogEventTiming.LineStarted, events[0].timing);
+                Assert.AreEqual(DialogEventTiming.LineEnded, events[2].timing);
+                Assert.IsTrue(DlgEvent.TryParseArgs(events[1].args, out var args));
+                CollectionAssert.AreEqual(new[] { "two words", "at", "end", "a#b" }, args);
+                CollectionAssert.Contains(doc.NamesUsed(DialogStringCategory.Events).ToList(), "StartWalking");
+
+                // What a writer does in the window: add an event, type arguments, pick "at end".
+                doc.rules[1].events.Add(new DlgEvent { name = "OpenGate", args = "north \"back door\"", timing = DialogEventTiming.LineEnded });
+                string text = doc.ToText();
+                StringAssert.Contains("do OpenGate north \"back door\" at end", text);
+
+                var parsed = DialogScriptParser.Parse(text, "kitchen.dlg");
+                Assert.IsFalse(parsed.HasErrors, string.Join("\n", parsed.Messages));
+                var gate = parsed.Rules[1].Events.Single();
+                CollectionAssert.AreEqual(new[] { "north", "back door" }, gate.Args);
+                Assert.AreEqual(DialogEventTiming.LineEnded, gate.Timing);
+
+                Assert.IsFalse(DlgEvent.TryParseArgs("\"unclosed", out _), "an unclosed quote is reported");
+            }
+            finally
+            {
+                Object.DestroyImmediate(doc);
             }
         }
 

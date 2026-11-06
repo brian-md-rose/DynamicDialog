@@ -111,6 +111,93 @@ namespace DynamicDialog.Tests
         }
 
         [UnityTest]
+        public IEnumerator DoEvents_ReachDialogEventsAndListeners_AtStartAndEnd()
+        {
+            var give = Rule("meiGetsGlasses", "Mei", "OnTalk", duration: 0.3f);
+            give.events.Add(new DialogEventDefinition { name = "GiveItem", args = new List<string> { "glasses" } });
+            give.events.Add(new DialogEventDefinition { name = "Leave", timing = DialogEventTiming.LineEnded });
+            SetRules(give, Rule("junTalks", "Jun", "OnTalk"));
+            var mei = MakeSpeaker("Mei", Vector3.zero);
+            var jun = MakeSpeaker("Jun", Vector3.right * 50f);
+            yield return null;
+
+            var seen = new List<string>();
+            var subscription = DialogEvents.On("giveitem", (speaker, e) => seen.Add($"{speaker.Who}:{e.Name}:{e.Arg(0)}"));
+            DialogEvents.On("Leave", (speaker, e) => seen.Add($"{speaker.Who}:{e.Name}"));
+
+            var listenerGo = Track(new GameObject("Listener"));
+            var listener = listenerGo.AddComponent<DialogEventListener>();
+            var fromMei = new DialogEventListener.Entry { eventName = "GiveItem", onlyFrom = mei };
+            var fromJun = new DialogEventListener.Entry { eventName = "GiveItem", onlyFrom = jun };
+            string argument = null;
+            int junCount = 0;
+            fromMei.onEventWithArgument.AddListener(a => argument = a);
+            fromJun.onEvent.AddListener(() => junCount++);
+            listener.events.Add(fromMei);
+            listener.events.Add(fromJun);
+
+            try
+            {
+                Assert.IsNotNull(mei.Speak("OnTalk"));
+                CollectionAssert.AreEqual(new[] { "Mei:GiveItem:glasses" }, seen, "start events arrive as the line starts");
+                Assert.AreEqual("glasses", argument);
+                Assert.AreEqual(0, junCount, "onlyFrom filters by speaker");
+
+                yield return WaitUntil(() => !mei.IsSpeaking);
+                CollectionAssert.AreEqual(new[] { "Mei:GiveItem:glasses", "Mei:Leave" }, seen, "end events arrive when the line ends");
+
+                subscription.Dispose();
+                yield return new WaitForSeconds(0.1f);
+                mei.Speak("OnTalk");
+                Assert.AreEqual(1, seen.Count(s => s.StartsWith("Mei:GiveItem")), "a disposed subscription stops listening");
+            }
+            finally
+            {
+                DialogEvents.Clear();
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator FactListener_ReactsToRuleWritesAndExpiry()
+        {
+            var r = Rule("junGetsCrutch", "Jun", "OnTalk");
+            r.remember.Add(new FactWriteDefinition { scope = FactScope.World, key = "crutch_returned", value = "1" });
+            r.remember.Add(new FactWriteDefinition { scope = FactScope.Speaker, key = "grateful", value = "1", duration = 0.5f });
+            SetRules(r);
+            var jun = MakeSpeaker("Jun", Vector3.zero);
+
+            var worldGo = Track(new GameObject("WorldWatcher"));
+            worldGo.SetActive(false);
+            var world = worldGo.AddComponent<DialogFactListener>();
+            world.Fact = "crutch_returned";
+            var values = new List<float>();
+            world.onValueChanged.AddListener(values.Add);
+
+            jun.gameObject.SetActive(false);
+            var mine = jun.gameObject.AddComponent<DialogFactListener>();
+            mine.Scope = FactScope.Speaker;
+            mine.Fact = "grateful";
+            int set = 0, removed = 0;
+            mine.onSet.AddListener(() => set++);
+            mine.onRemoved.AddListener(() => removed++);
+            jun.gameObject.SetActive(true);
+            worldGo.SetActive(true);
+            yield return null;
+
+            CollectionAssert.AreEqual(new[] { 0f }, values, "the current value is sent on enable");
+            Assert.IsNotNull(jun.Speak("OnTalk"));
+            CollectionAssert.AreEqual(new[] { 0f, 1f }, values);
+            Assert.AreEqual(1, set);
+            Assert.IsTrue(mine.TryGetValue(out float v) && v == 1f);
+
+            yield return WaitUntil(() => removed > 0);
+            Assert.AreEqual(1, removed, "expiry is reported by the director's per-frame check");
+
+            director.LoadStateJson(director.SaveStateJson());
+            Assert.AreEqual(1f, values[values.Count - 1], "loading a save re-sends the current value");
+        }
+
+        [UnityTest]
         public IEnumerator Interrupt_StopsLineAndDropsFollowup()
         {
             var first = Rule("longStory", "Nick", "Talk", duration: 0.5f);

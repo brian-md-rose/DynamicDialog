@@ -22,7 +22,7 @@ namespace DynamicDialog
 
     /// <summary>
     /// Checks rules against each other: followups nobody answers, criteria that can never all be
-    /// true, likely typos in fact names, duplicate names, and rules that do nothing.
+    /// true, likely typos in fact and event names, duplicate names, and rules that do nothing.
     /// </summary>
     public static class RuleAnalyzer
     {
@@ -72,13 +72,30 @@ namespace DynamicDialog
             var readCounts = all.SelectMany(x => x.rule.Criteria.Select(c => c.Key)).Where(k => !string.IsNullOrWhiteSpace(k))
                 .GroupBy(k => k, cmp).ToDictionary(g => g.Key, g => g.Count(), cmp);
 
+            // Event names, for spotting typos.
+            var eventCounts = all.SelectMany(x => x.rule.Events.Select(e => e.Name)).Where(n => !string.IsNullOrWhiteSpace(n))
+                .GroupBy(n => n, cmp).ToDictionary(g => g.Key, g => g.Count(), cmp);
+
             foreach (var (group, r) in all)
             {
                 if (string.IsNullOrWhiteSpace(r.Concept))
                     Add(messages, MessageSeverity.Warning, "Has no concept, so it can answer any event.", group, r);
 
-                if (r.Lines.Count == 0 && r.Writes.Count == 0 && r.Followups.Count == 0)
-                    Add(messages, MessageSeverity.Warning, "Does nothing: no lines, no remember, no then.", group, r);
+                if (r.Lines.Count == 0 && r.Writes.Count == 0 && r.Followups.Count == 0 && r.Events.Count == 0)
+                    Add(messages, MessageSeverity.Warning, "Does nothing: no lines, no remember, no then, no do.", group, r);
+
+                foreach (var e in r.Events)
+                {
+                    if (string.IsNullOrWhiteSpace(e.Name))
+                    {
+                        Add(messages, MessageSeverity.Error, "Has a 'do' with no event name.", group, r);
+                        continue;
+                    }
+                    if (eventCounts[e.Name] != 1) continue;
+                    string suggestion = Closest(e.Name, eventCounts.Keys.Where(k => eventCounts[k] > 1));
+                    if (suggestion != null)
+                        Add(messages, MessageSeverity.Warning, $"Raises '{e.Name}', which no other rule raises. Did you mean '{suggestion}'?", group, r);
+                }
 
                 CheckCompiles(messages, group, r);
                 CheckFollowups(messages, group, r, conceptsBySpeaker, anyWildcardConcept);

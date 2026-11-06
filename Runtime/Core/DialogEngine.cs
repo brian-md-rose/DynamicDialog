@@ -16,7 +16,7 @@ namespace DynamicDialog
         /// <summary>The character's name, the "who" fact.</summary>
         public readonly Symbol Who;
         /// <summary>What the character remembers. Rules write to it with "remember".</summary>
-        public readonly FactMemory Memory = new FactMemory();
+        public readonly FactMemory Memory;
         /// <summary>Sources of character facts computed on demand (health, inventory, ...).</summary>
         public readonly List<IFactProvider> Providers = new List<IFactProvider>();
 
@@ -26,6 +26,7 @@ namespace DynamicDialog
         {
             if (who.IsNone) throw new ArgumentException("A character needs a name.", nameof(who));
             Who = who;
+            Memory = new FactMemory(who);
         }
 
         /// <summary>The character's name.</summary>
@@ -88,6 +89,21 @@ namespace DynamicDialog
         public readonly RuleMatcher Matcher;
         /// <summary>World memory, shared by every character.</summary>
         public readonly FactMemory World = new FactMemory();
+
+        /// <summary>
+        /// Raised after any fact in world memory or a character's memory changes, is removed, or expires,
+        /// whether a rule or code changed it. <see cref="FactChange.Character"/> says whose memory it was.
+        /// </summary>
+        /// <remarks>Expiry is reported by <see cref="PurgeExpiredFacts"/>, which the Dialog Director calls every frame.</remarks>
+        public event Action<FactChange> FactChanged;
+
+        /// <summary>
+        /// Raised after many facts were replaced at once: once per <see cref="DialogSaveExtensions.LoadState"/>,
+        /// and whenever world or a character's memory is cleared or loaded. Re-read the facts you show.
+        /// </summary>
+        public event Action FactsReset;
+
+        int resetBatch;
         /// <summary>Sources of world facts computed on demand, added to every query.</summary>
         public readonly List<IFactProvider> WorldProviders = new List<IFactProvider>();
 
@@ -106,6 +122,46 @@ namespace DynamicDialog
             Clock = clock ?? throw new ArgumentNullException(nameof(clock));
             this.random = random ?? new SystemRandomSource();
             Matcher = new RuleMatcher(this.random);
+            Watch(World);
+        }
+
+        void Watch(FactMemory memory)
+        {
+            memory.Changed += OnFactChanged;
+            memory.Reset += OnMemoryReset;
+        }
+
+        void Unwatch(FactMemory memory)
+        {
+            memory.Changed -= OnFactChanged;
+            memory.Reset -= OnMemoryReset;
+        }
+
+        void OnFactChanged(FactChange change) => FactChanged?.Invoke(change);
+
+        void OnMemoryReset(FactMemory memory)
+        {
+            if (resetBatch == 0) FactsReset?.Invoke();
+        }
+
+        /// <summary>Groups memory resets so <see cref="FactsReset"/> is raised once, when the outermost batch ends.</summary>
+        internal void BeginFactsReset() => resetBatch++;
+
+        internal void EndFactsReset()
+        {
+            if (resetBatch == 0 || --resetBatch > 0) return;
+            FactsReset?.Invoke();
+        }
+
+        /// <summary>
+        /// Removes expired facts from world and character memory, raising <see cref="FactChanged"/> for each.
+        /// Cheap when nothing is due. The Dialog Director calls it every frame; call it yourself if you use the engine without one.
+        /// </summary>
+        public void PurgeExpiredFacts()
+        {
+            double now = Clock.Now;
+            World.PurgeExpired(now);
+            foreach (var c in characters.Values) c.Memory.PurgeExpired(now);
         }
 
         /// <summary>Every character created so far.</summary>
@@ -114,7 +170,11 @@ namespace DynamicDialog
         /// <summary>The character with this name, created (with empty memory) if it doesn't exist yet.</summary>
         public DialogCharacter GetOrCreateCharacter(Symbol who)
         {
-            if (!characters.TryGetValue(who, out var c)) characters[who] = c = new DialogCharacter(who);
+            if (!characters.TryGetValue(who, out var c))
+            {
+                characters[who] = c = new DialogCharacter(who);
+                Watch(c.Memory);
+            }
             return c;
         }
 
@@ -125,7 +185,12 @@ namespace DynamicDialog
         public bool TryGetCharacter(Symbol who, out DialogCharacter character) => characters.TryGetValue(who, out character);
 
         /// <summary>Forgets a character and its memory. Returns false if it didn't exist.</summary>
-        public bool RemoveCharacter(Symbol who) => characters.Remove(who);
+        public bool RemoveCharacter(Symbol who)
+        {
+            if (!characters.TryGetValue(who, out var c)) return false;
+            Unwatch(c.Memory);
+            return characters.Remove(who);
+        }
 
         /// <summary>Fills <paramref name="query"/> with every fact relevant to <paramref name="speaker"/> saying <paramref name="concept"/>.</summary>
         public void BuildQuery(Query query, DialogCharacter speaker, Symbol concept, Action<Query> eventFacts = null) =>

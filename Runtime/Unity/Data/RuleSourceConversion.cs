@@ -61,6 +61,9 @@ namespace DynamicDialog
 
             foreach (var f in s.Followups)
                 d.then.Add(new FollowupDefinition { target = f.Target, character = f.Character, concept = f.Concept, delay = f.Delay });
+
+            foreach (var e in s.Events)
+                d.events.Add(new DialogEventDefinition { name = e.Name, args = new List<string>(e.Args), timing = e.Timing });
             return d;
         }
 
@@ -116,6 +119,15 @@ namespace DynamicDialog
 
             foreach (var f in d.then)
                 s.Followups.Add(new FollowupSource { Target = f.target, Character = f.character, Concept = f.concept, Delay = f.delay });
+
+            if (d.events != null)
+                foreach (var e in d.events)
+                {
+                    if (e == null) continue;
+                    var es = new DialogEventSource { Name = e.name, Timing = e.timing };
+                    if (e.args != null) es.Args.AddRange(e.args);
+                    s.Events.Add(es);
+                }
             return s;
         }
 
