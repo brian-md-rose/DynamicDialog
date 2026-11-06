@@ -52,6 +52,29 @@ namespace DynamicDialog
                     Add(messages, MessageSeverity.Warning, $"Another rule is also named '{rule.Name}' (in {where}). Names should be unique so saves and debug tools can find rules.", group, rule);
             }
 
+            // Former names ("renamed"). Saves find rules by set and name, so each old name must lead to one rule.
+            foreach (var g in all.GroupBy(x => x.group))
+            {
+                var current = new HashSet<string>(g.Where(x => !string.IsNullOrWhiteSpace(x.rule.Name)).Select(x => x.rule.Name), cmp);
+                var claimedBy = new Dictionary<string, RuleSource>(cmp);
+                foreach (var (group, r) in g)
+                    foreach (var raw in r.FormerNames)
+                    {
+                        if (string.IsNullOrWhiteSpace(raw)) continue;
+                        string former = raw.Trim();
+                        if (cmp.Equals(former, r.Name?.Trim()))
+                            Add(messages, MessageSeverity.Info, $"Lists its own name '{former}' under 'renamed'; that does nothing.", group, r);
+                        else if (current.Contains(former))
+                            Add(messages, MessageSeverity.Warning, $"Lists '{former}' as a former name, but another rule is still called '{former}', so saves made under that name go to that rule instead.", group, r);
+                        else if (claimedBy.TryGetValue(former, out var other))
+                        {
+                            if (!ReferenceEquals(other, r))
+                                Add(messages, MessageSeverity.Warning, $"Lists '{former}' as a former name, and so does '{other.Name}'. Saved state under '{former}' goes to '{other.Name}' only.", group, r);
+                        }
+                        else claimedBy[former] = r;
+                    }
+            }
+
             // Concepts and who answers them.
             bool anyWildcardConcept = all.Any(x => string.IsNullOrWhiteSpace(x.rule.Concept));
             var conceptsBySpeaker = new Dictionary<string, HashSet<string>>(cmp); // concept -> speakers ("" = anyone)

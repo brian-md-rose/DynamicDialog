@@ -12,6 +12,7 @@ namespace DynamicDialog
     /// <c>rule</c>, <c>who</c>, <c>concept</c>, <c>if</c> (criteria in .dlg syntax, e.g. "health &lt; 30; map == swamp"),
     /// <c>text</c>, <c>audio</c>, <c>duration</c>, <c>anim</c>, <c>key</c> (localization key), <c>remember</c> ("said_x = 1; world gossip += 1 for 10s"),
     /// <c>then</c> ("Rochelle Reply after 1s; any Cheer"), <c>do</c> ("GiveItem glasses; StartWalking at end"),
+    /// <c>renamed</c> (the rule's former names, so saves made under them still apply),
     /// <c>once</c> (x/yes/true/1), <c>cooldown</c>, <c>weight</c>,
     /// <c>bonus</c>, <c>select</c>.
     /// Columns named notes, comment(s), description, status or actor, and columns starting with '#', are ignored.
@@ -29,7 +30,7 @@ namespace DynamicDialog
     {
         enum Column
         {
-            Ignore, Criterion, Rule, Who, Concept, If, Text, Audio, Duration, Anim, Key, Remember, Then, Do, Once, Cooldown, Weight, Bonus, Select,
+            Ignore, Criterion, Rule, Who, Concept, If, Text, Audio, Duration, Anim, Key, Remember, Then, Do, Renamed, Once, Cooldown, Weight, Bonus, Select,
         }
 
         /// <summary>Reads a CSV or TSV spreadsheet. Bad cells are reported; the rest still load.</summary>
@@ -187,6 +188,11 @@ namespace DynamicDialog
                         rule.Events.Add(Syntax.ParseDo(ts));
                     }
                     break;
+                case Column.Renamed:
+                    // Old names separated by spaces, commas or semicolons; "renamed A B" works too.
+                    foreach (var name in cell.Split(new[] { ' ', '\t', ',', ';', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                        if (!string.Equals(name, "renamed", StringComparison.OrdinalIgnoreCase)) rule.FormerNames.Add(name.Trim());
+                    break;
                 case Column.Once: rule.Once = Syntax.IsTruthy(cell); break;
                 case Column.Cooldown: rule.Cooldown = Syntax.ParseSeconds(cell); break;
                 case Column.Weight: rule.Weight = Syntax.ParseFloat(cell, "weight"); break;
@@ -255,6 +261,7 @@ namespace DynamicDialog
                 case "remember": case "sets": case "write": case "writes": return Column.Remember;
                 case "then": case "followup": case "followups": case "next": return Column.Then;
                 case "do": return Column.Do;
+                case "renamed": case "renamedfrom": case "formernames": return Column.Renamed;
                 case "once": return Column.Once;
                 case "cooldown": return Column.Cooldown;
                 case "weight": return Column.Weight;

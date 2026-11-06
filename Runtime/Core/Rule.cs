@@ -288,6 +288,12 @@ namespace DynamicDialog
         /// <summary>Game events raised when the rule plays ("do" in .dlg), in authored order.</summary>
         public readonly DialogEvent[] Events;
 
+        /// <summary>
+        /// Names the rule had before it was renamed ("renamed" in .dlg). Save data written under one of
+        /// these names is applied to this rule, so renaming a rule keeps its once and cooldown state.
+        /// </summary>
+        public readonly string[] FormerNames;
+
         /// <summary>Once and cooldown state for this session.</summary>
         public readonly RuleRuntimeState State = new RuleRuntimeState();
 
@@ -302,13 +308,15 @@ namespace DynamicDialog
         /// <param name="weight">Relative chance among tied rules. Negative values count as 0.</param>
         /// <param name="scoreBonus">Added to the criteria count to make the score.</param>
         /// <param name="events">Game events raised when it plays.</param>
+        /// <param name="formerNames">Names the rule had before, so saves made under them still apply. Blank names are ignored.</param>
         /// <exception cref="ArgumentException">A criterion has no key.</exception>
         public Rule(string name, IEnumerable<Criterion> criteria, object response = null,
             IEnumerable<FactWrite> writes = null, IEnumerable<Followup> followups = null,
             RuleFlags flags = RuleFlags.None, float cooldown = 0f, float weight = 1f, int scoreBonus = 0,
-            IEnumerable<DialogEvent> events = null)
+            IEnumerable<DialogEvent> events = null, IEnumerable<string> formerNames = null)
         {
             Events = events?.ToArray() ?? Array.Empty<DialogEvent>();
+            FormerNames = formerNames?.Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n.Trim()).ToArray() ?? Array.Empty<string>();
             Name = string.IsNullOrEmpty(name) ? "<unnamed>" : name;
             // OrderBy is a stable sort, so criteria sharing a key keep their authored order.
             Criteria = (criteria ?? Enumerable.Empty<Criterion>()).OrderBy(c => c.Key.Id).ToArray();
@@ -350,6 +358,16 @@ namespace DynamicDialog
             return -1;
         }
 
+        /// <summary>Whether <paramref name="name"/> is one of <see cref="FormerNames"/> (ignoring case).</summary>
+        public bool WasNamed(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return false;
+            name = name.Trim();
+            foreach (var n in FormerNames)
+                if (string.Equals(n, name, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
         /// <summary>Records that the rule played.</summary>
         internal void MarkFired(double now)
         {
@@ -370,6 +388,7 @@ namespace DynamicDialog
         readonly List<FactWrite> writes = new List<FactWrite>();
         readonly List<Followup> followups = new List<Followup>();
         readonly List<DialogEvent> events = new List<DialogEvent>();
+        readonly List<string> formerNames = new List<string>();
         object response;
         RuleFlags flags;
         float cooldown;
@@ -434,6 +453,9 @@ namespace DynamicDialog
         /// <summary>Adds any game event.</summary>
         public RuleBuilder Do(DialogEvent dialogEvent) { events.Add(dialogEvent); return this; }
 
+        /// <summary>Names the rule had before, so saves made under them still apply ("renamed" in .dlg).</summary>
+        public RuleBuilder Renamed(params string[] names) { if (names != null) formerNames.AddRange(names); return this; }
+
         /// <summary>The rule can play only once.</summary>
         public RuleBuilder Once() { flags |= RuleFlags.Once; return this; }
 
@@ -447,6 +469,6 @@ namespace DynamicDialog
         public RuleBuilder ScoreBonus(int bonus) { scoreBonus = bonus; return this; }
 
         /// <summary>Creates the rule.</summary>
-        public Rule Build() => new Rule(name, criteria, response, writes, followups, flags, cooldown, weight, scoreBonus, events);
+        public Rule Build() => new Rule(name, criteria, response, writes, followups, flags, cooldown, weight, scoreBonus, events, formerNames);
     }
 }

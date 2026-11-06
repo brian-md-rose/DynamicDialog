@@ -24,6 +24,8 @@ namespace DynamicDialog
             foreach (var r in rules)
             {
                 sb.Append("rule ").Append(Word(r.Name)).Append('\n');
+                var former = r.FormerNames.Where(n => !string.IsNullOrWhiteSpace(n)).ToList();
+                if (former.Count > 0) sb.Append("  renamed ").Append(string.Join(" ", former.Select(n => Word(n.Trim())))).Append('\n');
                 if (!string.IsNullOrWhiteSpace(r.Who)) sb.Append("  who ").Append(Word(r.Who)).Append('\n');
                 if (!string.IsNullOrWhiteSpace(r.Concept)) sb.Append("  concept ").Append(Word(r.Concept)).Append('\n');
                 foreach (var c in r.Criteria) sb.Append("  if ").Append(Criterion(c)).Append('\n');

@@ -787,7 +787,7 @@ namespace DynamicDialog.Editor
             bool Has(string s) => !string.IsNullOrEmpty(s) && s.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0;
             return Has(r.name) || Has(r.who) || Has(r.concept) || r.lines.Any(l => Has(l.text))
                    || r.criteria.Any(c => Has(c.key) || Has(c.value)) || r.writes.Any(w => Has(w.key))
-                   || r.followups.Any(f => Has(f.concept) || Has(f.character)) || r.events.Any(e => Has(e.name) || Has(e.args))
+                   || r.followups.Any(f => Has(f.concept) || Has(f.character)) || r.events.Any(e => Has(e.name) || Has(e.args)) || Has(r.renamed)
                    || Has(r.comment);
         }
 
@@ -947,6 +947,8 @@ namespace DynamicDialog.Editor
                 var copy = doc.rules[selected].Clone();
                 copy.name = UniqueRuleName(copy.name);
                 copy.comment = "";
+                copy.renamed = ""; // the original keeps its saved state; a copy is a new rule
+                copy.loadedName = "";
                 doc.rules.Insert(selected + 1, copy);
                 Select(selected + 1, remember: false);
             });
@@ -1017,6 +1019,7 @@ namespace DynamicDialog.Editor
                     foreach (var r in rules)
                     {
                         r.name = UniqueRuleName(r.name);
+                        r.loadedName = "";
                         doc.rules.Insert(at++, r);
                     }
                     Select(at - 1);
@@ -1110,6 +1113,9 @@ namespace DynamicDialog.Editor
             SetText(ref rule.name, EditorGUILayout.TextField(new GUIContent("Name", "Unique name, shown in the debugger and used by save data."), rule.name));
             if (string.IsNullOrWhiteSpace(rule.name)) EditorGUILayout.HelpBox("Give the rule a name.", MessageType.Error);
             else if (dup) EditorGUILayout.HelpBox("Another rule has this name. Names should be unique.", MessageType.Warning);
+            SetText(ref rule.renamed, EditorGUILayout.TextField(new GUIContent("Renamed from",
+                "Names this rule had before, separated by spaces. Saved games that remember the rule under an old name (once, cooldown) still apply to it."), rule.renamed));
+            DrawRenameHint(rule);
             Set(ref rule.who, NamePopup(new GUIContent("Who", "The speaker this rule is for."), rule.who, DialogStringCategory.Characters, "(anyone)"));
             Set(ref rule.concept, NamePopup(new GUIContent("Concept", "The event this rule answers."), rule.concept, DialogStringCategory.Concepts, "(any concept)"));
 
@@ -1185,6 +1191,25 @@ namespace DynamicDialog.Editor
                 EditorGUILayout.SelectableLabel(text, previewStyle, GUILayout.Height(h));
             }
             GUILayout.Space(12);
+        }
+
+        /// <summary>
+        /// After renaming a once or cooldown rule, offers to list its old name, so saved games that remember
+        /// the rule under that name keep its state.
+        /// </summary>
+        void DrawRenameHint(DlgRule rule)
+        {
+            string old = rule.loadedName?.Trim() ?? "";
+            string now = rule.name?.Trim() ?? "";
+            if (old.Length == 0 || now.Length == 0 || string.Equals(old, now, StringComparison.OrdinalIgnoreCase)) return;
+            if (!rule.once && rule.cooldown <= 0f) return;
+            if (DlgDocument.SplitNames(rule.renamed).Any(n => string.Equals(n, old, StringComparison.OrdinalIgnoreCase))) return;
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.HelpBox($"Renamed from '{old}'. Saved games remember this rule's once/cooldown state under '{old}'.", MessageType.Info);
+                if (GUILayout.Button(new GUIContent("Keep Saves", $"Add '{old}' to Renamed from"), GUILayout.Width(84), GUILayout.Height(38)))
+                    Modify("Keep Saved State", () => rule.renamed = string.IsNullOrWhiteSpace(rule.renamed) ? old : rule.renamed.Trim() + " " + old);
+            }
         }
 
         void DrawRuleProblems(DlgRule rule)

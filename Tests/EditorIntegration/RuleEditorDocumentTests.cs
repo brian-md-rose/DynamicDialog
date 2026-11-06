@@ -20,6 +20,7 @@ namespace DynamicDialog.Editor.Tests
 
 # Comment above the first rule
 rule Hello
+  renamed HelloOld ""Hello Older""
   who Rosa
   concept OnTalk
   if met_rosa missing
@@ -121,6 +122,35 @@ rule JunSees  # comment inside a rule
                 Assert.AreEqual(DialogEventTiming.LineEnded, gate.Timing);
 
                 Assert.IsFalse(DlgEvent.TryParseArgs("\"unclosed", out _), "an unclosed quote is reported");
+            }
+            finally
+            {
+                Object.DestroyImmediate(doc);
+            }
+        }
+
+        [Test]
+        public void FormerNamesLoadIntoTheEditor_AndEditsAreSaved()
+        {
+            var doc = DlgDocument.Load("kitchen.dlg", Kitchen, out _);
+            try
+            {
+                var hello = doc.rules[0];
+                CollectionAssert.AreEqual(new[] { "HelloOld", "Hello Older" }, DlgDocument.SplitNames(hello.renamed));
+                Assert.AreEqual("Hello", hello.loadedName, "the editor remembers the name the rule was opened with");
+                Assert.IsEmpty(doc.rules[1].renamed);
+
+                // What a writer does in the window: rename the rule and list its old name (commas or spaces).
+                doc.rules[1].name = "JunSeesCrutch";
+                doc.rules[1].renamed = "JunSees, JunLooks";
+                string text = doc.ToText();
+                StringAssert.Contains("renamed JunSees JunLooks", text);
+                StringAssert.Contains("renamed HelloOld \"Hello Older\"", text);
+
+                var parsed = DialogScriptParser.Parse(text, "kitchen.dlg");
+                Assert.IsFalse(parsed.HasErrors, string.Join("\n", parsed.Messages));
+                CollectionAssert.AreEqual(new[] { "JunSees", "JunLooks" }, parsed.Rules[1].FormerNames);
+                CollectionAssert.AreEqual(new[] { "HelloOld", "Hello Older" }, parsed.Rules[0].FormerNames);
             }
             finally
             {
