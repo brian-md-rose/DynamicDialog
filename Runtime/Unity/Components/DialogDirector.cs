@@ -141,6 +141,7 @@ namespace DynamicDialog
 
             Conductor.LineStarted += OnLineStarted;
             Conductor.NoMatch += OnNoMatch;
+            Conductor.EventRaised += OnEventRaised;
 
             foreach (var db in databases) AddDatabase(db);
             Initialized?.Invoke(this);
@@ -154,6 +155,7 @@ namespace DynamicDialog
 
         void Update()
         {
+            Engine?.PurgeExpiredFacts();
             Conductor?.Update();
         }
 
@@ -346,6 +348,12 @@ namespace DynamicDialog
                 while (history.Count > historySize) history.Dequeue();
             }
             if (logLines) Debug.Log($"[DynamicDialog] {line}", line.Speaker as UnityEngine.Object);
+        }
+
+        void OnEventRaised(DialogLine line, DialogEvent e)
+        {
+            if (logLines) Debug.Log($"[DynamicDialog] {line.Speaker.Character}: {e} (from {line.Rule.Name})", line.Speaker as UnityEngine.Object);
+            DialogEvents.OnConductorEvent(line, e);
         }
 
         void OnNoMatch(IDialogSpeaker speaker, Symbol concept)

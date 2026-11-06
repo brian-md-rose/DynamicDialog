@@ -29,6 +29,8 @@ namespace DynamicDialog
     ///   remember Ellis heard_it = 1   # another character's memory
     ///   forget area
     ///   then Rochelle SwampReply after 1s   # or: then self|any|all Concept
+    ///   do GiveItem glasses          # a game event with arguments, raised when the line starts
+    ///   do StartWalking at end       # raised when the line ends (dropped if it is interrupted)
     ///   once
     ///   cooldown 30s
     ///   weight 2
@@ -144,6 +146,9 @@ namespace DynamicDialog
                     case "then":
                         rule.Followups.Add(Syntax.ParseThen(ts));
                         break;
+                    case "do":
+                        rule.Events.Add(Syntax.ParseDo(ts));
+                        break;
                     case "once":
                         rule.Once = true;
                         ts.ExpectEnd("once");
@@ -161,7 +166,7 @@ namespace DynamicDialog
                         ts.ExpectEnd("bonus");
                         break;
                     default:
-                        throw new FormatException($"Unknown statement '{head.Text}'. Expected who, concept, if, say, select, remember, forget, then, once, cooldown, weight or bonus.");
+                        throw new FormatException($"Unknown statement '{head.Text}'. Expected who, concept, if, say, select, remember, forget, then, do, once, cooldown, weight or bonus.");
                 }
             }
 
@@ -536,6 +541,40 @@ namespace DynamicDialog
             ts.ExpectEnd("then");
             return f;
         }
+
+        /// <summary>
+        /// <c>do EventName [arg ...] [at start|at end]</c>. Arguments are words or quoted text; a quoted
+        /// "at" is an argument, not the timing.
+        /// </summary>
+        public static DialogEventSource ParseDo(TokenStream ts)
+        {
+            if (ts.AtEnd) throw new FormatException("'do' needs an event name, e.g. 'do GiveItem glasses'.");
+            var nameToken = ts.Next();
+            if (nameToken.IsSeparator || (!nameToken.IsString && IsOperator(nameToken.Text)))
+                throw new FormatException($"Expected an event name after 'do', found '{nameToken}'.");
+            if (string.IsNullOrWhiteSpace(nameToken.Text)) throw new FormatException("'do' needs an event name.");
+            var e = new DialogEventSource { Name = nameToken.Text.Trim() };
+
+            var rest = new List<Token>();
+            while (!ts.AtEnd) rest.Add(ts.Next());
+            int n = rest.Count;
+            if (n >= 2 && rest[n - 2].Is("at") && !rest[n - 1].IsString)
+            {
+                string when = rest[n - 1].Text.ToLowerInvariant();
+                if (when == "end") e.Timing = DialogEventTiming.LineEnded;
+                else if (when != "start") throw new FormatException($"Expected 'at start' or 'at end' at the end of 'do', found 'at {rest[n - 1].Text}'.");
+                n -= 2;
+            }
+            for (int i = 0; i < n; i++)
+            {
+                if (rest[i].IsSeparator && !rest[i].Is("and"))
+                    throw new FormatException($"Separate 'do' arguments with spaces, not '{rest[i].Text}'. Quote an argument that contains one.");
+                e.Args.Add(rest[i].Text);
+            }
+            return e;
+        }
+
+        static bool IsOperator(string s) => s.Length > 0 && (s[0] == '<' || s[0] == '>' || s[0] == '=' || s[0] == '!' || s == "+=" || s == "-=");
 
         public static ResponseSelection ParseSelection(string text)
         {

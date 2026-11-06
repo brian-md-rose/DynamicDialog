@@ -11,7 +11,8 @@ namespace DynamicDialog
     /// Known columns (case-insensitive; spaces and underscores ignored):
     /// <c>rule</c>, <c>who</c>, <c>concept</c>, <c>if</c> (criteria in .dlg syntax, e.g. "health &lt; 30; map == swamp"),
     /// <c>text</c>, <c>audio</c>, <c>duration</c>, <c>anim</c>, <c>key</c> (localization key), <c>remember</c> ("said_x = 1; world gossip += 1 for 10s"),
-    /// <c>then</c> ("Rochelle Reply after 1s; any Cheer"), <c>once</c> (x/yes/true/1), <c>cooldown</c>, <c>weight</c>,
+    /// <c>then</c> ("Rochelle Reply after 1s; any Cheer"), <c>do</c> ("GiveItem glasses; StartWalking at end"),
+    /// <c>once</c> (x/yes/true/1), <c>cooldown</c>, <c>weight</c>,
     /// <c>bonus</c>, <c>select</c>.
     /// Columns named notes, comment(s), description, status or actor, and columns starting with '#', are ignored.
     /// </para>
@@ -28,7 +29,7 @@ namespace DynamicDialog
     {
         enum Column
         {
-            Ignore, Criterion, Rule, Who, Concept, If, Text, Audio, Duration, Anim, Key, Remember, Then, Once, Cooldown, Weight, Bonus, Select,
+            Ignore, Criterion, Rule, Who, Concept, If, Text, Audio, Duration, Anim, Key, Remember, Then, Do, Once, Cooldown, Weight, Bonus, Select,
         }
 
         /// <summary>Reads a CSV or TSV spreadsheet. Bad cells are reported; the rest still load.</summary>
@@ -178,6 +179,14 @@ namespace DynamicDialog
                 case Column.Then:
                     foreach (var part in SplitStatements(cell)) rule.Followups.Add(Syntax.ParseThen(Stream(part)));
                     break;
+                case Column.Do:
+                    foreach (var part in SplitStatements(cell))
+                    {
+                        var ts = Stream(part);
+                        if (ts.Peek().Is("do")) ts.Next(); // "do GiveItem glasses" works as well as "GiveItem glasses"
+                        rule.Events.Add(Syntax.ParseDo(ts));
+                    }
+                    break;
                 case Column.Once: rule.Once = Syntax.IsTruthy(cell); break;
                 case Column.Cooldown: rule.Cooldown = Syntax.ParseSeconds(cell); break;
                 case Column.Weight: rule.Weight = Syntax.ParseFloat(cell, "weight"); break;
@@ -245,6 +254,7 @@ namespace DynamicDialog
                 case "key": case "linekey": case "stringkey": case "loc": case "lockey": return Column.Key;
                 case "remember": case "sets": case "write": case "writes": return Column.Remember;
                 case "then": case "followup": case "followups": case "next": return Column.Then;
+                case "do": return Column.Do;
                 case "once": return Column.Once;
                 case "cooldown": return Column.Cooldown;
                 case "weight": return Column.Weight;

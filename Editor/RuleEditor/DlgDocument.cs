@@ -55,6 +55,40 @@ namespace DynamicDialog.Editor
     }
 
     [Serializable]
+    internal class DlgEvent
+    {
+        public string name = "";
+        /// <summary>The arguments as typed: .dlg words, with quotes around any that contain spaces.</summary>
+        public string args = "";
+        public DialogEventTiming timing = DialogEventTiming.LineStarted;
+
+        /// <summary>Arguments as one line of .dlg text, quoted the way the writer quotes them.</summary>
+        public static string ArgsToText(IEnumerable<string> args)
+        {
+            // Reuse the writer's quoting: "do x a b" minus the "do x " prefix.
+            var s = new DialogEventSource { Name = "x" };
+            s.Args.AddRange(args);
+            string text = DialogScriptWriter.Do(s);
+            return text.Length > 5 ? text.Substring(5) : "";
+        }
+
+        /// <summary>Reads arguments typed as .dlg text. Returns false (and splits on spaces) when a quote isn't closed.</summary>
+        public static bool TryParseArgs(string text, out List<string> args)
+        {
+            try
+            {
+                args = Tokenizer.Tokenize(text ?? "").Select(t => t.Text).ToList();
+                return true;
+            }
+            catch (FormatException)
+            {
+                args = (text ?? "").Split((char[])null, StringSplitOptions.RemoveEmptyEntries).ToList();
+                return false;
+            }
+        }
+    }
+
+    [Serializable]
     internal class DlgRule
     {
         /// <summary>Comment lines written above the rule, kept as raw text (each line starts with # or //, or is blank).</summary>
@@ -67,13 +101,14 @@ namespace DynamicDialog.Editor
         public List<DlgLine> lines = new List<DlgLine>();
         public List<DlgWrite> writes = new List<DlgWrite>();
         public List<DlgFollowup> followups = new List<DlgFollowup>();
+        public List<DlgEvent> events = new List<DlgEvent>();
         public bool once;
         public float cooldown;
         public float weight = 1f;
         public int bonus;
 
         // Editor-only UI state, kept here so it survives undo and domain reloads.
-        public bool foldConditions = true, foldLines = true, foldWrites = true, foldFollowups = true, foldOptions = true, foldComment;
+        public bool foldConditions = true, foldLines = true, foldWrites = true, foldEvents = true, foldFollowups = true, foldOptions = true, foldComment;
 
         public DlgRule Clone()
         {
@@ -254,6 +289,8 @@ namespace DynamicDialog.Editor
             }
             foreach (var f in s.Followups)
                 r.followups.Add(new DlgFollowup { target = f.Target, character = f.Character ?? "", concept = f.Concept ?? "", delay = f.Delay });
+            foreach (var e in s.Events)
+                r.events.Add(new DlgEvent { name = e.Name ?? "", args = DlgEvent.ArgsToText(e.Args), timing = e.Timing });
             return r;
         }
 
@@ -307,6 +344,13 @@ namespace DynamicDialog.Editor
                     Target = f.target, Character = f.target == FollowupTarget.Character ? Clean(f.character) : null,
                     Concept = f.concept?.Trim() ?? "", Delay = Mathf.Max(0f, f.delay),
                 });
+            foreach (var e in r.events)
+            {
+                var es = new DialogEventSource { Name = e.name?.Trim() ?? "", Timing = e.timing };
+                DlgEvent.TryParseArgs(e.args, out var args);
+                es.Args.AddRange(args);
+                s.Events.Add(es);
+            }
             return s;
         }
 
@@ -399,6 +443,9 @@ namespace DynamicDialog.Editor
                         break;
                     case DialogStringCategory.Audio:
                         foreach (var l in r.lines) V(ref l.audio);
+                        break;
+                    case DialogStringCategory.Events:
+                        foreach (var e in r.events) V(ref e.name);
                         break;
                 }
             }

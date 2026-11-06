@@ -88,10 +88,18 @@ namespace DynamicDialog
             if (data == null) throw new ArgumentNullException(nameof(data));
             double now = engine.Clock.Now;
 
-            engine.World.Load(data.world, now);
-            foreach (var c in engine.Characters) c.Memory.Clear();
-            foreach (var c in data.characters ?? new List<CharacterMemorySave>())
-                if (!string.IsNullOrEmpty(c.who)) engine.GetOrCreateCharacter(c.who).Memory.Load(c.facts, now);
+            engine.BeginFactsReset();
+            try
+            {
+                engine.World.Load(data.world, now);
+                foreach (var c in engine.Characters) c.Memory.Clear();
+                foreach (var c in data.characters ?? new List<CharacterMemorySave>())
+                    if (!string.IsNullOrEmpty(c.who)) engine.GetOrCreateCharacter(c.who).Memory.Load(c.facts, now);
+            }
+            finally
+            {
+                engine.EndFactsReset();
+            }
 
             var pending = new List<RuleStateSave>(data.rules ?? new List<RuleStateSave>());
             foreach (var set in engine.Matcher.Sets)

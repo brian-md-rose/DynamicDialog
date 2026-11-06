@@ -186,6 +186,17 @@ namespace DynamicDialog.Editor
             return Contains(r.Speaker.Name, f) || Contains(r.Concept.Name, f) || (r.Winner != null && Contains(r.Winner.Name, f));
         }
 
+        /// <summary>What the winning rule does besides its line: fact writes, game events and followups, one per line.</summary>
+        internal static string Effects(Rule rule)
+        {
+            if (rule == null) return null;
+            var parts = new List<string>();
+            foreach (var w in rule.Writes) parts.Add("remember " + w);
+            foreach (var e in rule.Events) parts.Add($"<color=#6fb6ff>{e}</color>");
+            foreach (var f in rule.Followups) parts.Add(f.ToString());
+            return parts.Count == 0 ? null : "<color=#999999>Does:</color> " + string.Join("\n      ", parts);
+        }
+
         static bool Contains(string s, string f) => s != null && s.IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0;
 
         void DrawRecord(LookupRecord r, DialogDirector director)
@@ -195,6 +206,8 @@ namespace DynamicDialog.Editor
                 : $"Winner: <b>{r.Winner.Name}</b> (score {r.Winner.Score}{(r.TieCount > 1 ? $", picked from {r.TieCount} tied" : "")}). " +
                   (r.Started ? "<color=#6fcf5f>Played.</color>" : "<color=#e0b030>Not played</color> (another speaker won, or the speaker was busy).");
             GUILayout.Label($"<b>#{r.Id}</b>  {r.Speaker} asked about <b>{r.Concept}</b> at {r.Time:0.00}s\n{outcome}", rich);
+            string effects = r.Matched ? Effects(r.Winner) : null;
+            if (!string.IsNullOrEmpty(effects)) GUILayout.Label(effects, rich);
 
             if (GUILayout.Button("Copy into Test Query", GUILayout.Width(160)))
             {

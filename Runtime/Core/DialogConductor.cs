@@ -98,6 +98,14 @@ namespace DynamicDialog
         /// <summary>Raised when a line ends. The bool is false if it was stopped early.</summary>
         public event Action<DialogLine, bool> LineEnded;
 
+        /// <summary>
+        /// Raised for each game event a playing rule raises ("do" in .dlg). Events timed
+        /// <see cref="DialogEventTiming.LineStarted"/> are raised after <see cref="LineStarted"/> and before the
+        /// speaker begins the line; <see cref="DialogEventTiming.LineEnded"/> ones are raised just before
+        /// <see cref="LineEnded"/>, and only when the line played to the end.
+        /// </summary>
+        public event Action<DialogLine, DialogEvent> EventRaised;
+
         /// <summary>Raised when a speaker was asked for a concept and nothing matched. Useful for debug logs.</summary>
         public event Action<IDialogSpeaker, Symbol> NoMatch;
 
@@ -210,6 +218,7 @@ namespace DynamicDialog
                 double now = Engine.Clock.Now;
                 foreach (var f in line.Rule.Followups)
                     pending.Add(new Pending { Due = now + Math.Max(0f, f.Delay), Source = line.Speaker, Followup = f });
+                RaiseEvents(line, DialogEventTiming.LineEnded);
             }
             LineEnded?.Invoke(line, completed);
         }
@@ -292,8 +301,18 @@ namespace DynamicDialog
             // Raise before BeginLine: a zero-length line may finish inside BeginLine,
             // and listeners should always see the start before the finish.
             LineStarted?.Invoke(line);
-            speaker.BeginLine(line);
+            RaiseEvents(line, DialogEventTiming.LineStarted);
+            // An event handler may have stopped or replaced the line already.
+            if (active.TryGetValue(speaker, out var still) && still == line) speaker.BeginLine(line);
             return line;
+        }
+
+        void RaiseEvents(DialogLine line, DialogEventTiming timing)
+        {
+            var events = line.Rule.Events;
+            if (events.Length == 0 || EventRaised == null) return;
+            for (int i = 0; i < events.Length; i++)
+                if (events[i].Timing == timing) EventRaised?.Invoke(line, events[i]);
         }
     }
 }

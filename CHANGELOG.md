@@ -9,6 +9,18 @@
 - `DialogRuleDatabase.SourcePath` (read-only).
 - Tests for every renamed member's old name.
 
+#### Rules that trigger game code
+- **`do` statement** in `.dlg` files: `do GiveItem glasses` raises a named game event with optional text arguments when the rule's line starts (right after its facts are written). `do StartWalking at end` raises it when the line ends instead, and, like followups, not at all if the line is interrupted. Quote an argument that contains spaces, or a literal `at`.
+- The same in every other format: a **`Do` column** in spreadsheets (`GiveItem glasses; StartWalking at end`), an **Events** list on inspector rules (`RuleDefinition.events`, `DialogEventDefinition`), and a **Do (game events)** section in the Rule Editor, with event names in a new **Events** category of the Rule Editor String Table and links to other rules that raise the same event.
+- Core API: `DialogEvent` (name, `Args`, `Arg`/`FloatArg`/`IntArg`, `Timing`), `DialogEventTiming`, `Rule.Events`, `RuleBuilder.Do`/`DoAtEnd`, `DialogEventSource`, `RuleSource.Events`, and `DialogConductor.EventRaised`.
+- Unity API: `DialogEvents.On("GiveItem", (speaker, e) => ...)` returns an `IDisposable`; also `DialogEvents.Off`, `Any`, `Raise`, `HasHandlers` and `Clear`. A handler that throws is logged and doesn't stop the others. Subscriptions are cleared when Play Mode starts.
+- **Dialog Event Listener** component: event name, optional "only from" speaker, and UnityEvents with and without the first argument.
+- **Fact-change notifications:** `FactMemory.Changed` and `DialogEngine.FactChanged` report every change to world or character memory, from rules or code (`FactChange`: key, whose memory, kind, old and new value). Setting a fact to the value it already has is silent. Expired facts are reported as `FactChangeKind.Expired` by `FactMemory.PurgeExpired`/`DialogEngine.PurgeExpiredFacts`, which the Dialog Director calls every frame (cheap when nothing is due), or by the first read of that fact. `FactMemory.Reset` and `DialogEngine.FactsReset` replace per-fact changes on `Clear`, `Load` and `LoadState` (one reset per load). Also `FactMemory.Owner` and a `TryGet` overload that says whether the value is a symbol.
+- **Dialog Fact Listener** component: watches one fact (world, this speaker, or a named character) and raises UnityEvents with the new value, as a number and as text, plus `onSet` and `onRemoved`. It sends the current value when enabled and after a save is loaded.
+- The Debugger's Lookups tab shows what the winning rule does: its fact writes, events and followups.
+- The Rule Validator reports a rule that only raises events as doing something, and warns about an event name used once that is close to one used elsewhere ("Did you mean 'GiveItem'?").
+- Logging lines on the Dialog Director also logs each event.
+
 ### Changed (API freeze for 1.0)
 These renames keep the old name as an `[Obsolete]` member that forwards to the new one, so 0.6 code still compiles, with a warning that names the replacement.
 
@@ -44,6 +56,9 @@ Other changes:
 - **These are now internal:** `FloatMath`, `FactValue.IsSymbolKey`, `SpreadsheetParser.ReadRows` and `EscapeCell`, `Rule.MarkFired`, `DialogDirector.ReplaceDatabase`, the database custom inspector (`DialogRuleDatabaseEditor`), `DialogValidatorWindow.Run` and `KnownFacts`, `DialogStringTable.AllCategories` and `Describe`, and the Rule Editor's document model (`DlgDocument`, `DlgRule`, `DlgCriterion`, `DlgLine`, `DlgWrite`, `DlgFollowup`). They were implementation details with no supported replacement. `Rule.MarkFired` is done for you by `DialogEngine.Commit`, and `ReplaceDatabase` by hot reload.
 - **Fields that became properties** still compile from source. Assemblies built against 0.6 need recompiling, and those members can't be passed as `ref` or `out` any more.
 - **Setting `MatchTrace` or `RuleRuntimeState` values** from game code no longer compiles. Only the engine writes them.
+- **A spreadsheet column headed `Do`** now holds game events. Before, it was a criterion on a fact called `do`. Rename such a column (for example to `If`, as `do == value`) to keep the old meaning.
+- **Building a query no longer purges expired facts** from memory. They are still left out of every query and read, and are removed by the director's per-frame check (or `DialogEngine.PurgeExpiredFacts()` if you use the engine without a director). `FactMemory.Count`, which already counted expired entries not yet purged, may count them a little longer.
+- **`Rule`'s constructor has a new last optional parameter, `events`.** Source code that calls it still compiles; assemblies built against 0.6 need recompiling.
 
 ## [0.1.0] - 2026-11-05
 ### Added

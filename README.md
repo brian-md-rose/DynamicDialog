@@ -45,11 +45,14 @@ In Unity 2021.3 or later, open Package Manager, choose **Add package from diskâ€
 | Dialog Area | trigger volume | Sets `area` in the memory of speakers inside it |
 | Dialog Region | region scene | Loads a database, and region-only world facts (`region` = name, plus any others), while enabled |
 | Dialog Addressable Region | region scene | Same, but streams the database through Addressables (only when the Addressables package is installed) |
+| Dialog Event Listener | anywhere | UnityEvents for the game events rules raise with `do` |
+| Dialog Fact Listener | anywhere | UnityEvents when a fact in world or character memory changes |
 | Subtitle Overlay (Debug) | anywhere | IMGUI subtitles, optionally with rule names |
 | Debug Overlay | anywhere | Labels over each speaker: current line and latest lookup (green played, yellow matched but not played, red no match) |
 
 Your own facts: implement `IFactProvider` on a component next to a speaker (character facts) or the director (world facts).
 React to lines: implement `IDialogLineHandler`, use a speaker's `onSubtitle` event, or the static `DialogSpeaker.AnyLineStarted`.
+To trigger game code from a rule, use a `do` event (see **Writing rules**) rather than checking rule names.
 
 Code can trigger lines with `speaker.Speak("OnHurt", q => q.Set("damage", 30))`. Pass `interrupt: true` to cut off the current line,
 which also drops its followups. Rule edits made in the inspector during Play Mode take effect immediately.
@@ -76,12 +79,27 @@ rule NickSwampIntro
   say "Cesspool of disease, is what this is."
   remember said_intro = 1
   remember speaking = 1 for 4s
+  do PlayMusic swamp_theme              # a game event for your code
   then Rochelle SwampReply after 1s     # or: then self|any|all Concept
   once
 ```
 
 The full grammar, including `select`, `forget`, `cooldown`, `weight`, `bonus`, `default`, `@concept` and `@partition`,
-is documented at the top of `Runtime/Core/Authoring/DialogScriptParser.cs`. Errors show in the Console with file and line,
+is documented at the top of `Runtime/Core/Authoring/DialogScriptParser.cs`.
+
+**Game events (`do`)** let rules trigger game code without the code knowing rule names. `do GiveItem glasses`
+raises the event `GiveItem` with the argument `glasses` when the line starts, right after the rule's `remember` facts
+are written. Add `at end` (`do StartWalking at end`) to raise it when the line has played to the end instead; like
+followups, it is dropped if the line is interrupted. Arguments are words or quoted text. React to them in code:
+
+```csharp
+IDisposable sub = DialogEvents.On("GiveItem", (speaker, e) => inventory.Give(speaker, e.Arg(0)));
+// later: sub.Dispose();
+```
+
+or with a **Dialog Event Listener** component (event name, optional speaker, UnityEvents). To react to facts instead,
+for quest markers or UI, use a **Dialog Fact Listener** component or `DialogDirector.Instance.Engine.FactChanged`,
+which reports every change to world and character memory, including expiry. Errors show in the Console with file and line,
 and the rest of the file still imports.
 
 **Rule Editor** (**Window > Dynamic Dialog > Rule Editor**, or **Open in Rule Editor** on a `.dlg` file's inspector) edits
@@ -93,7 +111,8 @@ file's comments: comments above a rule travel with it, and comments inside a rul
 
 **Spreadsheets** (**Assets > Create > Dynamic Dialog > Dialog Spreadsheet**): save as CSV or TSV and name the file
 `.dlgcsv` or `.dlgtsv`. There is one row per recorded line; a row with an empty `Rule` cell adds a variation to the rule above.
-Known columns are `Rule, Who, Concept, If, Text, Audio, Duration, Anim, Remember, Then, Once, Cooldown, Weight, Bonus, Select`.
+Known columns are `Rule, Who, Concept, If, Text, Audio, Duration, Anim, Remember, Then, Do, Once, Cooldown, Weight, Bonus, Select`
+(`Do` holds game events: `GiveItem glasses; StartWalking at end`).
 `Notes`, `Comment`, `Actor`, `Status` and columns starting with `#` are ignored. **Any other column is a criterion**
 named after its header: a `Map` column holding `swamp` means `Map == swamp`, and cells can also hold `< 30`, `>= 3`,
 `!= nick`, `30..60`, `exists` or `missing`.

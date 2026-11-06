@@ -772,6 +772,7 @@ namespace DynamicDialog.Editor
             parts.Add(concept);
             if (r.criteria.Count > 0) parts.Add($"{r.criteria.Count} if");
             parts.Add($"{r.lines.Count} line{(r.lines.Count == 1 ? "" : "s")}");
+            if (r.events.Count > 0) parts.Add("do " + string.Join(", ", r.events.Select(e => e.name)));
             if (r.followups.Count > 0) parts.Add("→ " + r.followups.Count);
             if (r.once) parts.Add("once");
 
@@ -786,7 +787,8 @@ namespace DynamicDialog.Editor
             bool Has(string s) => !string.IsNullOrEmpty(s) && s.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0;
             return Has(r.name) || Has(r.who) || Has(r.concept) || r.lines.Any(l => Has(l.text))
                    || r.criteria.Any(c => Has(c.key) || Has(c.value)) || r.writes.Any(w => Has(w.key))
-                   || r.followups.Any(f => Has(f.concept) || Has(f.character)) || Has(r.comment);
+                   || r.followups.Any(f => Has(f.concept) || Has(f.character)) || r.events.Any(e => Has(e.name) || Has(e.args))
+                   || Has(r.comment);
         }
 
         void DrawListRow(int index, string title, string subtitle, bool problem, float indent)
@@ -1138,6 +1140,15 @@ namespace DynamicDialog.Editor
                     Modify("Add Fact Change", () => rule.writes.Add(new DlgWrite { key = FirstName(DialogStringCategory.Facts) }));
             }
 
+            // Game events.
+            if (Foldout(ref rule.foldEvents, $"Do (game events) — {rule.events.Count}"))
+            {
+                for (int i = 0; i < rule.events.Count; i++) DrawEvent(rule, i);
+                if (rule.events.Count == 0) GUILayout.Label("Game code reacts to these with DialogEvents.On or a Dialog Event Listener.", EditorStyles.miniLabel);
+                if (GUILayout.Button("Add Event", GUILayout.Width(120)))
+                    Modify("Add Event", () => rule.events.Add(new DlgEvent { name = FirstName(DialogStringCategory.Events) }));
+            }
+
             // Followups.
             if (Foldout(ref rule.foldFollowups, $"Then (followups) — {rule.followups.Count}"))
             {
@@ -1301,6 +1312,28 @@ namespace DynamicDialog.Editor
             }
         }
 
+        static readonly string[] TimingLabels = { "at start", "at end" };
+        static readonly DialogEventTiming[] TimingValues = { DialogEventTiming.LineStarted, DialogEventTiming.LineEnded };
+
+        void DrawEvent(DlgRule rule, int i)
+        {
+            var e = rule.events[i];
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                GUILayout.Label("do", GUILayout.Width(20));
+                Set(ref e.name, NamePopup(null, e.name, DialogStringCategory.Events, null, GUILayout.MinWidth(90)));
+                SetText(ref e.args, EditorGUILayout.TextField(new GUIContent("", "Arguments, separated by spaces. Quote one that contains spaces."), e.args ?? "", GUILayout.MinWidth(80)));
+                int ti = EditorGUILayout.Popup(new GUIContent("", "At start: when the line starts, with the rule's facts. At end: when the line ends, and only if it wasn't interrupted."),
+                    Mathf.Max(0, Array.IndexOf(TimingValues, e.timing)), TimingLabels.Select(l => new GUIContent(l)).ToArray(), GUILayout.Width(66));
+                Set(ref e.timing, TimingValues[ti]);
+                using (new EditorGUI.DisabledScope(i == 0))
+                    if (GUILayout.Button("▲", GUILayout.Width(22))) Modify("Move Event", () => Swap(rule.events, i, i - 1));
+                if (RemoveButton()) Modify("Remove Event", () => rule.events.RemoveAt(i));
+            }
+            if (!DlgEvent.TryParseArgs(e.args, out _))
+                GUILayout.Label("An argument's quote isn't closed.", badStyle);
+        }
+
         void DrawFollowup(DlgRule rule, int i)
         {
             var f = rule.followups[i];
@@ -1394,6 +1427,13 @@ namespace DynamicDialog.Editor
                 var readers = Enumerable.Range(0, doc.rules.Count).Where(i => i != self && doc.rules[i].criteria.Any(c => c.key == key)).ToList();
                 LinkList($"Remembers “{key}”, which is checked by", readers, "No rule in this file checks it.");
             }
+
+            foreach (var name in rule.events.Select(e => e.name).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var others = Enumerable.Range(0, doc.rules.Count)
+                    .Where(i => i != self && doc.rules[i].events.Any(e => string.Equals(e.name, name, StringComparison.OrdinalIgnoreCase))).ToList();
+                LinkList($"Raises “{name}”, which is also raised by", others, "No other rule in this file.");
+            }
         }
 
         void LinkList(string heading, List<int> rules, string emptyText)
@@ -1455,6 +1495,7 @@ namespace DynamicDialog.Editor
                 case DialogStringCategory.Facts: return "fact";
                 case DialogStringCategory.Values: return "value";
                 case DialogStringCategory.Animations: return "animation";
+                case DialogStringCategory.Events: return "event";
                 default: return "clip";
             }
         }
@@ -1649,8 +1690,10 @@ namespace DynamicDialog.Editor
                 var r = doc.rules[i];
                 string name = string.IsNullOrWhiteSpace(r.name) ? $"#{i + 1}" : r.name;
                 if (string.IsNullOrWhiteSpace(r.name)) list.Add(new AuthoringMessage(MessageSeverity.Error, "Rule has no name.", file, 0, name));
-                if (r.lines.Count == 0 && r.writes.Count == 0 && r.followups.Count == 0)
-                    list.Add(new AuthoringMessage(MessageSeverity.Warning, "Rule has no lines, fact changes or followups, so it does nothing.", file, 0, name));
+                if (r.lines.Count == 0 && r.writes.Count == 0 && r.followups.Count == 0 && r.events.Count == 0)
+                    list.Add(new AuthoringMessage(MessageSeverity.Warning, "Rule has no lines, fact changes, events or followups, so it does nothing.", file, 0, name));
+                if (r.events.Any(e => !DlgEvent.TryParseArgs(e.args, out _)))
+                    list.Add(new AuthoringMessage(MessageSeverity.Error, "An event's arguments have a quote that isn't closed.", file, 0, name));
                 if (r.criteria.Any(c => string.IsNullOrWhiteSpace(c.key)) || r.writes.Any(w => string.IsNullOrWhiteSpace(w.key)))
                     list.Add(new AuthoringMessage(MessageSeverity.Error, "A condition or fact change has no fact selected.", file, 0, name));
                 if (r.followups.Any(f => string.IsNullOrWhiteSpace(f.concept) || (f.target == FollowupTarget.Character && string.IsNullOrWhiteSpace(f.character))))

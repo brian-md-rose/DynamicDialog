@@ -89,6 +89,25 @@ namespace DynamicDialog
             new Followup(target, Symbol.Of(concept), Symbol.Of(character), delay);
     }
 
+    /// <summary>An authored game event ("do").</summary>
+    [Serializable]
+    public class DialogEventDefinition
+    {
+        /// <summary>The event's name, e.g. "GiveItem".</summary>
+        public string name;
+
+        /// <summary>Its arguments, as text.</summary>
+        [Tooltip("Arguments passed to handlers, as text.")]
+        public List<string> args = new List<string>();
+
+        /// <summary>When it is raised.</summary>
+        [Tooltip("Line Started: when the line starts (with the rule's facts). Line Ended: when the line ends, and only if it wasn't interrupted.")]
+        public DialogEventTiming timing = DialogEventTiming.LineStarted;
+
+        /// <summary>Builds the core event.</summary>
+        public DialogEvent ToDialogEvent() => new DialogEvent(name, args, timing);
+    }
+
     /// <summary>
     /// A rule as authored in the inspector or produced by an importer. Compiled into a core
     /// <see cref="Rule"/> whose payload is <see cref="response"/>.
@@ -118,6 +137,10 @@ namespace DynamicDialog
 
         /// <summary>Concepts sent when the line finishes.</summary>
         public List<FollowupDefinition> then = new List<FollowupDefinition>();
+
+        /// <summary>Game events raised when the rule plays ("do").</summary>
+        [Tooltip("Game events raised when the rule plays, for DialogEvents.On or a Dialog Event Listener.")]
+        public List<DialogEventDefinition> events = new List<DialogEventDefinition>();
 
         /// <summary>The rule plays only once.</summary>
         [Tooltip("Disable the rule after it plays once.")]
@@ -160,6 +183,9 @@ namespace DynamicDialog
                 if (then[i].target == FollowupTarget.Character && string.IsNullOrWhiteSpace(then[i].character))
                     errors.Add($"{label}: followup {i} targets a character but names none.");
             }
+            if (events != null)
+                for (int i = 0; i < events.Count; i++)
+                    if (events[i] == null || string.IsNullOrWhiteSpace(events[i].name)) errors.Add($"{label}: event {i} has no name.");
             if (response == null || response.lines.Count == 0)
                 errors.Add($"{label}: has no lines (fine for logic-only rules).");
             return errors.Count == before;

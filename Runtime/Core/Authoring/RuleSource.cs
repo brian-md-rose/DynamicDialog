@@ -129,6 +129,17 @@ namespace DynamicDialog
         public float Delay;
     }
 
+    /// <summary>An authored game event ("do" in .dlg).</summary>
+    public sealed class DialogEventSource
+    {
+        /// <summary>The event's name.</summary>
+        public string Name;
+        /// <summary>Its arguments, as text.</summary>
+        public readonly List<string> Args = new List<string>();
+        /// <summary>When it is raised ("at end" in .dlg for <see cref="DialogEventTiming.LineEnded"/>).</summary>
+        public DialogEventTiming Timing = DialogEventTiming.LineStarted;
+    }
+
     /// <summary>
     /// One rule as written by a writer, in any format (.dlg text, spreadsheet, inspector).
     /// Parsers produce these; the Unity importer turns them into a <c>DialogRuleDatabase</c>.
@@ -151,6 +162,8 @@ namespace DynamicDialog
         public readonly List<FactWriteSource> Writes = new List<FactWriteSource>();
         /// <summary>Concepts sent when the line finishes.</summary>
         public readonly List<FollowupSource> Followups = new List<FollowupSource>();
+        /// <summary>Game events raised when the rule plays ("do").</summary>
+        public readonly List<DialogEventSource> Events = new List<DialogEventSource>();
         /// <summary>The rule plays only once.</summary>
         public bool Once;
         /// <summary>Seconds before it can play again.</summary>
@@ -187,8 +200,12 @@ namespace DynamicDialog
             foreach (var f in Followups)
                 followups.Add(new Followup(f.Target, Symbol.Of(f.Concept), Symbol.Of(f.Character), f.Delay));
 
+            var events = new List<DialogEvent>(Events.Count);
+            foreach (var e in Events)
+                events.Add(new DialogEvent(e.Name, e.Args, e.Timing));
+
             return new Rule(Name, criteria, response, writes, followups,
-                Once ? RuleFlags.Once : RuleFlags.None, Cooldown, Weight, ScoreBonus);
+                Once ? RuleFlags.Once : RuleFlags.None, Cooldown, Weight, ScoreBonus, events);
         }
     }
 
