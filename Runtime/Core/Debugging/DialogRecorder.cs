@@ -9,12 +9,15 @@ namespace DynamicDialog
     /// </summary>
     public sealed class LookupRecord
     {
+        /// <summary>Unique, increasing ID.</summary>
         public int Id { get; internal set; }
 
         /// <summary>Game time of the lookup.</summary>
         public double Time { get; internal set; }
 
+        /// <summary>The character who was asked.</summary>
         public Symbol Speaker { get; internal set; }
+        /// <summary>The concept asked for.</summary>
         public Symbol Concept { get; internal set; }
 
         /// <summary>A copy of the query as it was.</summary>
@@ -26,16 +29,21 @@ namespace DynamicDialog
         /// <summary>Rules the matcher tested, in order. Rules in other buckets, or below the winning score, aren't tested.</summary>
         public IReadOnlyList<TraceEntry> Tested { get; internal set; }
 
+        /// <summary>The rule that won, or null.</summary>
         public Rule Winner { get; internal set; }
+        /// <summary>How many rules shared the winning score.</summary>
         public int TieCount { get; internal set; }
 
         /// <summary>True once the winning line actually started playing (it may be asked for and not used, e.g. by "then any").</summary>
         public bool Started { get; internal set; }
 
+        /// <summary>True when a rule won.</summary>
         public bool Matched => Winner != null;
 
+        /// <summary>Where the fact for <paramref name="key"/> came from, or null.</summary>
         public string SourceOf(Symbol key) => FactSources != null && FactSources.TryGetValue(key, out var s) ? s : null;
 
+        /// <summary>A one-line summary: id, time, speaker, concept and result.</summary>
         public override string ToString() =>
             $"#{Id} {Time:0.00}s {Speaker}: {Concept} -> {(Winner != null ? Winner.Name : "no match")}{(Started ? "" : Winner != null ? " (not played)" : "")}";
     }
@@ -50,11 +58,13 @@ namespace DynamicDialog
         int nextId = 1;
         int capacity;
 
+        /// <summary>Creates a recorder that keeps the newest <paramref name="capacity"/> lookups.</summary>
         public DialogRecorder(int capacity = 256)
         {
             this.capacity = Math.Max(1, capacity);
         }
 
+        /// <summary>How many lookups are kept (at least 1). Lowering it drops the oldest.</summary>
         public int Capacity
         {
             get => capacity;
@@ -74,6 +84,7 @@ namespace DynamicDialog
         /// <summary>Raised when a recorded lookup's line starts playing.</summary>
         public event Action<LookupRecord> Started;
 
+        /// <summary>Forgets every recorded lookup.</summary>
         public void Clear() => records.Clear();
 
         /// <summary>The newest lookup by <paramref name="speaker"/>, or null.</summary>
@@ -95,7 +106,7 @@ namespace DynamicDialog
                 Concept = concept,
                 Query = query.Clone(),
                 FactSources = sources,
-                Tested = trace != null ? trace.Entries.ToArray() : Array.Empty<TraceEntry>(),
+                Tested = trace != null ? trace.entries.ToArray() : Array.Empty<TraceEntry>(),
                 Winner = winner,
                 TieCount = trace?.TieCount ?? (winner != null ? 1 : 0),
             };

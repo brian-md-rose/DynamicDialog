@@ -10,6 +10,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- Unity suppresses CS0649 for serialized fields. -->
     <NoWarn>$(NoWarn);CS0649</NoWarn>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DefineConstants>$(DefineConstants);UNITY_2023_1_OR_NEWER</DefineConstants>
     <UnityManaged Condition="'$(UnityManaged)' == ''">C:/Program Files/Unity/Hub/Editor/6000.5.5f1/Editor/Data/Managed/UnityEngine</UnityManaged>
   </PropertyGroup>

@@ -28,15 +28,21 @@ namespace DynamicDialog.Editor
         GUIStyle wrapStyle;
 
         /// <summary>Fact names your code provides, entered in the window, so they aren't reported as unknown.</summary>
-        public static IEnumerable<string> KnownFacts =>
+        internal static IEnumerable<string> KnownFacts =>
             EditorPrefs.GetString(KnownFactsPref, "").Split(new[] { ',', ' ', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries);
-
         [MenuItem("Window/Dynamic Dialog/Rule Validator")]
-        public static void Open() => GetWindow<DialogValidatorWindow>("Dialog Rules").Run();
+
+        /// <summary>Opens the validator and checks every rule database in the project.</summary>
+        public static DialogValidatorWindow Open()
+        {
+            var w = GetWindow<DialogValidatorWindow>("Dialog Rules");
+            w.Run();
+            return w;
+        }
 
         void OnEnable() => knownFactsText = EditorPrefs.GetString(KnownFactsPref, "");
 
-        public void Run()
+        internal void Run()
         {
             rows.Clear();
             var groups = new List<RuleSourceGroup>();
@@ -47,7 +53,7 @@ namespace DynamicDialog.Editor
                 string path = AssetDatabase.GUIDToAssetPath(guid);
                 var db = AssetDatabase.LoadAssetAtPath<DialogRuleDatabase>(path);
                 if (db == null) continue;
-                string label = db.IsImported ? db.sourcePath : path;
+                string label = db.IsImported ? db.SourcePath : path;
                 assets[label] = AssetDatabase.LoadMainAssetAtPath(label) ?? db;
                 groups.Add(new RuleSourceGroup(label, db.ToSources()));
                 foreach (var e in db.Validate())

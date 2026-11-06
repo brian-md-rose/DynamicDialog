@@ -38,7 +38,7 @@ namespace DynamicDialog.Tests
             {
                 var l = Current;
                 Current = null;
-                conductor.LineFinished(l, completed: false);
+                conductor.EndLine(l, completed: false);
             }
 
             public void Complete()
@@ -46,7 +46,7 @@ namespace DynamicDialog.Tests
                 var l = Current;
                 Assert.IsNotNull(l, $"{Character} is not speaking");
                 Current = null;
-                conductor.LineFinished(l, completed: true);
+                conductor.EndLine(l, completed: true);
             }
         }
 
@@ -277,7 +277,7 @@ namespace DynamicDialog.Tests
             var nick = new FakeSpeaker(conductor, "Nick");
             var first = conductor.TrySpeak(nick, "Talk");
             nick.Complete();
-            conductor.LineFinished(first, completed: true); // duplicate report
+            conductor.EndLine(first, completed: true); // duplicate report
             Tick();
             Assert.AreEqual(2, nick.Said.Count, "the followup was scheduled once");
         }

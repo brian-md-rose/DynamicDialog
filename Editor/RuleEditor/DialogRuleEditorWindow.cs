@@ -64,8 +64,9 @@ namespace DynamicDialog.Editor
 
         // ---- Opening ------------------------------------------------------------------------------
 
+        /// <summary>Opens the Rule Editor (Window > Dynamic Dialog > Rule Editor).</summary>
         [MenuItem("Window/Dynamic Dialog/Rule Editor")]
-        public static DialogRuleEditorWindow ShowWindow()
+        public static DialogRuleEditorWindow Open()
         {
             var w = GetWindow<DialogRuleEditorWindow>();
             w.minSize = new Vector2(640, 360);
@@ -73,11 +74,20 @@ namespace DynamicDialog.Editor
             return w;
         }
 
-        public static void Open(string path)
+        /// <summary>Old name of <see cref="Open()"/>.</summary>
+        [Obsolete("Use Open().")]
+        public static DialogRuleEditorWindow ShowWindow() => Open();
+
+        /// <summary>
+        /// Opens the Rule Editor on a .dlg file. If another file has unsaved changes, asks whether to discard them first.
+        /// </summary>
+        /// <param name="path">The .dlg file's project path, e.g. "Assets/Dialog/Nick.dlg".</param>
+        public static DialogRuleEditorWindow Open(string path)
         {
-            var w = ShowWindow();
-            if (w.doc != null && string.Equals(w.docPath, path, StringComparison.OrdinalIgnoreCase)) return;
+            var w = Open();
+            if (w.doc != null && string.Equals(w.docPath, path, StringComparison.OrdinalIgnoreCase)) return w;
             if (w.ConfirmDiscard()) w.LoadFromDisk(path);
+            return w;
         }
 
         [MenuItem("Assets/Dynamic Dialog/Edit in Rule Editor", false, 30)]
@@ -127,6 +137,7 @@ namespace DynamicDialog.Editor
 
         void OnFocus() => CheckExternalChange();
 
+        /// <summary>Saves the open .dlg file. Unity calls this when the window closes with unsaved changes.</summary>
         public override void SaveChanges()
         {
             Save();

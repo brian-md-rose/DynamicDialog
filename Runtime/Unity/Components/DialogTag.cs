@@ -15,12 +15,16 @@ namespace DynamicDialog
         [Tooltip("The name rules test, e.g. 'barrel' or 'soda_can'. Empty uses the GameObject name.")]
         [SerializeField] string tagName;
 
+        /// <summary>Where speakers aim for line of sight. Empty uses this transform.</summary>
         [Tooltip("Where speakers aim at for line of sight. Empty uses this transform.")]
         public Transform focus;
 
+        /// <summary>Every enabled tag.</summary>
         public static IReadOnlyList<DialogTag> All => all;
 
+        /// <summary>The name rules test: Tag Name, or the GameObject name when that is empty.</summary>
         public Symbol Tag => Symbol.Of(string.IsNullOrWhiteSpace(tagName) ? gameObject.name : tagName.Trim());
+        /// <summary>Where speakers look at: <see cref="focus"/>, or this transform.</summary>
         public Vector3 FocusPosition => focus != null ? focus.position : transform.position;
 
         void OnEnable() => all.Add(this);

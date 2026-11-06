@@ -37,6 +37,9 @@ namespace DynamicDialog
     /// </summary>
     public static class DialogScriptParser
     {
+        /// <summary>Reads .dlg text. Statements with errors are skipped and reported; the rest still load.</summary>
+        /// <param name="text">The file's contents.</param>
+        /// <param name="fileName">Used in messages. May be null.</param>
         public static DialogSource Parse(string text, string fileName = null)
         {
             var result = new DialogSource();

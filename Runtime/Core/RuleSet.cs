@@ -16,12 +16,20 @@ namespace DynamicDialog
         /// <summary>At most 4 keys, which means 16 bucket probes per lookup.</summary>
         public const int MaxPartitionKeys = 4;
 
+        /// <summary>The set's name. Save data matches rule state to sets by it (a database's asset name).</summary>
         public readonly string Name;
+        /// <summary>Every rule, in authored order.</summary>
         public readonly IReadOnlyList<Rule> Rules;
+        /// <summary>The fact keys rules are bucketed by.</summary>
         public readonly IReadOnlyList<Symbol> PartitionKeys;
 
         readonly Dictionary<ulong, Rule[]> buckets;
 
+        /// <summary>Compiles rules into buckets.</summary>
+        /// <param name="name">The set's name.</param>
+        /// <param name="rules">The rules.</param>
+        /// <param name="partitionKeys">Keys to bucket by, at most <see cref="MaxPartitionKeys"/>. None means (concept, who).</param>
+        /// <exception cref="ArgumentException">Too many keys, or a key repeats.</exception>
         public RuleSet(string name, IEnumerable<Rule> rules, params Symbol[] partitionKeys)
         {
             Name = name ?? "";
@@ -55,12 +63,16 @@ namespace DynamicDialog
             buckets = building.ToDictionary(kv => kv.Key, kv => kv.Value.OrderByDescending(r => r.Score).ToArray());
         }
 
+        /// <summary>How many buckets the rules were split into.</summary>
         public int BucketCount => buckets.Count;
+        /// <summary>The number of rules in the largest bucket: roughly the most rules one lookup can test.</summary>
         public int LargestBucket => buckets.Count == 0 ? 0 : buckets.Values.Max(b => b.Length);
 
+        /// <summary>The rule with this name (ignoring case), or null.</summary>
         public Rule FindRule(string ruleName) =>
             Rules.FirstOrDefault(r => string.Equals(r.Name, ruleName, StringComparison.OrdinalIgnoreCase));
 
+        /// <summary>Resets every rule's once and cooldown state.</summary>
         public void ResetState()
         {
             foreach (var r in Rules) r.State.Reset();

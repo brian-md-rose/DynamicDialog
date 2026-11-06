@@ -4,6 +4,46 @@
 ### Added
 - Rule Editor window (**Window > Dynamic Dialog > Rule Editor**) for `.dlg` files, moved in from the ProjectConverse test project: searchable name pickers backed by a `DialogStringTable` asset, live problem checking, links between rules (followup answers, rules that set or check a fact), drag to reorder, group by speaker, copy and paste as `.dlg` text, undo, and a text preview.
 - Editor tests that round-trip `.dlg` files (including every `.dlg` in the project and the samples) through the Rule Editor's document model and check the rules don't change.
+- XML doc comments on every public type and member. The `Tests~/DotNet` Core and Unity builds now generate documentation and fail on any undocumented public member.
+- `WellKnownFacts` now holds every built-in fact key: `From`, `Map`, `SpeakersTalking`, `Object`, `ObjectDistance`, `Area`, `NearbySpeakers`, `Region`, and `NearPrefix` ("near_"), alongside `Concept`, `Who` and `Random`.
+- `DialogRuleDatabase.SourcePath` (read-only).
+- Tests for every renamed member's old name.
+
+### Changed (API freeze for 1.0)
+These renames keep the old name as an `[Obsolete]` member that forwards to the new one, so 0.6 code still compiles, with a warning that names the replacement.
+
+| 0.6 | 1.0 |
+|---|---|
+| `DialogConductor.FromFact` | `WellKnownFacts.From` |
+| `DialogDirector.MapFact` | `WellKnownFacts.Map` |
+| `DialogDirector.SpeakersTalkingFact` | `WellKnownFacts.SpeakersTalking` |
+| `DialogArea.AreaFact` | `WellKnownFacts.Area` |
+| `DialogVision.ObjectFact`, `ObjectDistanceFact` | `WellKnownFacts.Object`, `ObjectDistance` |
+| `NearbySpeakerFacts.NearbySpeakersFact` | `WellKnownFacts.NearbySpeakers` |
+| `RegionFacts.RegionFact` | `WellKnownFacts.Region` |
+| `DialogSpeaker.AnyLineFinished` | `DialogSpeaker.AnyLineEnded` |
+| `DialogSpeaker.onLineFinished` | `DialogSpeaker.onLineEnded` (handlers wired in scenes and prefabs carry over) |
+| `DialogConductor.LineFinished(line, completed)` | `DialogConductor.EndLine(line, completed)` |
+| `MatchResult.Success` | `MatchResult.Matched` |
+| `DialogRuleDatabase.sourcePath` | `DialogRuleDatabase.SourcePath` (saved assets keep their value) |
+| `DialogRuleEditorWindow.ShowWindow()` | `DialogRuleEditorWindow.Open()` |
+
+Other changes:
+- Line ends are called "ended" everywhere, matching `DialogConductor.LineEnded`.
+- `DialogEngine.Trace`, `DialogEngine.Recorder` and `DialogConductor.NamedFollowupsRequireEarshot` are properties instead of fields.
+- `MatchTrace.Query`, `Winner` and `TieCount` are read-only, and `Entries` is an `IReadOnlyList<TraceEntry>`. The matcher fills them in.
+- `RuleRuntimeState.Disabled`, `TimesFired` and `LastFiredTime` are read-only. Use `Reset()` or `RuleSet.ResetState()` to clear them.
+- `DialogValidatorWindow.Open()` and `DialogRuleEditorWindow.Open(path)` return the window, like `DialogDebuggerWindow.Open()`.
+- The Rule Validator knows the `region` fact, so rules that test it are no longer reported as using an unknown fact.
+
+### Removed
+- `QueryPool`. Nothing used it. If you did, keep a `Query` of your own and call `Clear()` on it.
+
+### Breaking changes and migration
+- **`IDialogLineHandler.OnLineFinished` is now `OnLineEnded`.** An interface method can't keep its old name, so classes that implement `IDialogLineHandler` must rename that method. The parameters are the same.
+- **These are now internal:** `FloatMath`, `FactValue.IsSymbolKey`, `SpreadsheetParser.ReadRows` and `EscapeCell`, `Rule.MarkFired`, `DialogDirector.ReplaceDatabase`, the database custom inspector (`DialogRuleDatabaseEditor`), `DialogValidatorWindow.Run` and `KnownFacts`, `DialogStringTable.AllCategories` and `Describe`, and the Rule Editor's document model (`DlgDocument`, `DlgRule`, `DlgCriterion`, `DlgLine`, `DlgWrite`, `DlgFollowup`). They were implementation details with no supported replacement. `Rule.MarkFired` is done for you by `DialogEngine.Commit`, and `ReplaceDatabase` by hot reload.
+- **Fields that became properties** still compile from source. Assemblies built against 0.6 need recompiling, and those members can't be passed as `ref` or `out` any more.
+- **Setting `MatchTrace` or `RuleRuntimeState` values** from game code no longer compiles. Only the engine writes them.
 
 ## [0.1.0] - 2026-11-05
 ### Added

@@ -8,6 +8,8 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>DynamicDialog</RootNamespace>
+    <!-- Every public member must have an XML doc comment (CS1591 is an error here). -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../../Runtime/Core/**/*.cs" />

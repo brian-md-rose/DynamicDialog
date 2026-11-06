@@ -10,6 +10,8 @@ namespace DynamicDialog
     /// </summary>
     public static class RuleSourceConversion
     {
+        /// <summary>Converts an authored rule into the serialized form stored in a database.</summary>
+        /// <param name="s">The authored rule.</param>
         /// <param name="resolveAudio">Turns a clip name or path from the source into a clip. May return null.</param>
         public static RuleDefinition ToDefinition(this RuleSource s, Func<string, AudioClip> resolveAudio = null)
         {
@@ -117,6 +119,7 @@ namespace DynamicDialog
             return s;
         }
 
+        /// <summary>Every rule in the database as an authored rule, for exporting and checking.</summary>
         public static List<RuleSource> ToSources(this DialogRuleDatabase database)
         {
             var list = new List<RuleSource>(database.rules.Count);

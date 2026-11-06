@@ -10,13 +10,16 @@ namespace DynamicDialog
     [AddComponentMenu("Dynamic Dialog/Dialog Area")]
     public class DialogArea : MonoBehaviour
     {
-        public static readonly Symbol AreaFact = Symbol.Of("area");
+        /// <summary>Old name of <see cref="WellKnownFacts.Area"/>.</summary>
+        [System.Obsolete("Use WellKnownFacts.Area.")]
+        public static readonly Symbol AreaFact = WellKnownFacts.Area;
 
         [SerializeField] string areaName;
 
         [Tooltip("Optional concept given to a speaker when it enters, with the area as a fact.")]
         [SerializeField] string enterConcept;
 
+        /// <summary>The area's name: Area Name, or the GameObject name when that is empty.</summary>
         public Symbol Area => Symbol.Of(string.IsNullOrWhiteSpace(areaName) ? gameObject.name : areaName.Trim());
 
         void OnTriggerEnter(Collider other)
@@ -26,7 +29,7 @@ namespace DynamicDialog
             var director = speaker.Director;
             if (director == null) return;
 
-            speaker.Memory.Set(AreaFact, Area, director.Engine.Clock.Now);
+            speaker.Memory.Set(WellKnownFacts.Area, Area, director.Engine.Clock.Now);
             if (!string.IsNullOrWhiteSpace(enterConcept)) speaker.Speak(enterConcept);
         }
 
@@ -37,8 +40,8 @@ namespace DynamicDialog
 
             // Only clear it if the speaker hasn't already walked into another area.
             double now = speaker.Director.Engine.Clock.Now;
-            if (speaker.Memory.TryGet(AreaFact, now, out float current) && current == Area.AsValue)
-                speaker.Memory.Remove(AreaFact);
+            if (speaker.Memory.TryGet(WellKnownFacts.Area, now, out float current) && current == Area.AsValue)
+                speaker.Memory.Remove(WellKnownFacts.Area);
         }
     }
 }

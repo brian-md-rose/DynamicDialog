@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Text;
 
 namespace DynamicDialog
@@ -17,6 +16,8 @@ namespace DynamicDialog
         bool[] symbolFlags;
         int count;
 
+        /// <summary>Creates an empty query.</summary>
+        /// <param name="capacity">How many facts it holds before it has to grow.</param>
         public Query(int capacity = 64)
         {
             capacity = Math.Max(4, capacity);
@@ -25,30 +26,44 @@ namespace DynamicDialog
             symbolFlags = new bool[capacity];
         }
 
+        /// <summary>Number of facts.</summary>
         public int Count => count;
+
+        /// <summary>The key of the fact at <paramref name="index"/> (0 to <see cref="Count"/> - 1, in key-ID order).</summary>
         public Symbol KeyAt(int index) => keys[index];
+
+        /// <summary>The value of the fact at <paramref name="index"/>.</summary>
         public float ValueAt(int index) => values[index];
 
         /// <summary>Whether the fact at <paramref name="index"/> was set from a symbol (a name), not a number.</summary>
         public bool IsSymbolAt(int index) => symbolFlags[index];
 
+        /// <summary>The "concept" fact, or <see cref="Symbol.None"/>.</summary>
         public Symbol Concept
         {
             get => GetSymbol(WellKnownFacts.Concept);
             set => Set(WellKnownFacts.Concept, value);
         }
 
+        /// <summary>The "who" fact, or <see cref="Symbol.None"/>.</summary>
         public Symbol Who
         {
             get => GetSymbol(WellKnownFacts.Who);
             set => Set(WellKnownFacts.Who, value);
         }
 
+        /// <summary>Removes every fact.</summary>
         public void Clear() => count = 0;
 
+        /// <summary>Sets a fact to a number, replacing any existing value.</summary>
+        /// <exception cref="ArgumentException"><paramref name="key"/> is <see cref="Symbol.None"/>.</exception>
         public void Set(Symbol key, float value) => Set(key, value, false);
 
+        /// <summary>Sets a fact, replacing any existing value.</summary>
+        /// <param name="key">The fact's key.</param>
+        /// <param name="value">The value (a symbol's <see cref="Symbol.AsValue"/> for names).</param>
         /// <param name="isSymbol">The value is a symbol ID. Only affects how tools display it.</param>
+        /// <exception cref="ArgumentException"><paramref name="key"/> is <see cref="Symbol.None"/>.</exception>
         public void Set(Symbol key, float value, bool isSymbol)
         {
             if (key.IsNone) throw new ArgumentException("Fact key cannot be None.", nameof(key));
@@ -78,12 +93,22 @@ namespace DynamicDialog
             count++;
         }
 
+        /// <summary>Sets a fact to a name.</summary>
         public void Set(Symbol key, Symbol value) => Set(key, value.AsValue, true);
+
+        /// <summary>Sets a fact to 1 (true) or 0 (false).</summary>
         public void Set(Symbol key, bool value) => Set(key, value ? 1f : 0f);
+
+        /// <summary>Sets a fact to a number.</summary>
         public void Set(string key, float value) => Set(Symbol.Of(key), value);
+
+        /// <summary>Sets a fact to a name, e.g. <c>q.Set("object", "barrel")</c>.</summary>
         public void Set(string key, string symbolValue) => Set(Symbol.Of(key), Symbol.Of(symbolValue).AsValue, true);
+
+        /// <summary>Sets a fact to 1 (true) or 0 (false).</summary>
         public void Set(string key, bool value) => Set(Symbol.Of(key), value);
 
+        /// <summary>Removes a fact. Returns false if it wasn't there.</summary>
         public bool Remove(Symbol key)
         {
             int i = IndexOf(key);
@@ -98,8 +123,10 @@ namespace DynamicDialog
             return true;
         }
 
+        /// <summary>Whether the query has a fact for <paramref name="key"/>.</summary>
         public bool Contains(Symbol key) => IndexOf(key) >= 0;
 
+        /// <summary>Gets a fact's value. Returns false (and 0) if it isn't set.</summary>
         public bool TryGet(Symbol key, out float value)
         {
             int i = IndexOf(key);
@@ -112,11 +139,13 @@ namespace DynamicDialog
             return false;
         }
 
+        /// <summary>A fact's value as a symbol, or <see cref="Symbol.None"/> if it isn't set or isn't a name.</summary>
         public Symbol GetSymbol(Symbol key)
         {
             return TryGet(key, out float v) && SymbolTable.TryFromValue(v, out Symbol s) ? s : Symbol.None;
         }
 
+        /// <summary>Replaces the contents of <paramref name="other"/> with a copy of this query's facts.</summary>
         public void CopyTo(Query other)
         {
             if (other.keys.Length < count)
@@ -131,6 +160,7 @@ namespace DynamicDialog
             other.count = count;
         }
 
+        /// <summary>A new query with the same facts.</summary>
         public Query Clone()
         {
             var q = new Query(Math.Max(4, count));
@@ -141,6 +171,7 @@ namespace DynamicDialog
         /// <summary>The value at <paramref name="index"/> as text: a name for symbols and well-known keys, otherwise a number.</summary>
         public string FormatValueAt(int index) => FactValue.Format(keys[index], values[index], symbolFlags[index]);
 
+        /// <summary>Whether the fact for <paramref name="key"/> is set and was set from a symbol.</summary>
         public bool IsSymbol(Symbol key)
         {
             int i = IndexOf(key);
@@ -163,6 +194,7 @@ namespace DynamicDialog
             return ~lo;
         }
 
+        /// <summary>Every fact as "key=value", separated by "; ".</summary>
         public override string ToString()
         {
             var sb = new StringBuilder();
@@ -172,31 +204,6 @@ namespace DynamicDialog
                 sb.Append(keys[i].Name).Append('=').Append(FormatValueAt(i));
             }
             return sb.ToString();
-        }
-    }
-
-    /// <summary>Tiny free-list for queries, so hot paths don't allocate.</summary>
-    public static class QueryPool
-    {
-        [ThreadStatic] static Stack<Query> pool;
-
-        public static Query Get()
-        {
-            var p = pool ?? (pool = new Stack<Query>());
-            if (p.Count > 0)
-            {
-                var q = p.Pop();
-                q.Clear();
-                return q;
-            }
-            return new Query();
-        }
-
-        public static void Release(Query query)
-        {
-            if (query == null) return;
-            query.Clear();
-            (pool ?? (pool = new Stack<Query>())).Push(query);
         }
     }
 }

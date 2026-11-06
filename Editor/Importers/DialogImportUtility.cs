@@ -16,7 +16,7 @@ namespace DynamicDialog.Editor
         {
             var db = ScriptableObject.CreateInstance<DialogRuleDatabase>();
             db.name = Path.GetFileNameWithoutExtension(ctx.assetPath);
-            db.sourcePath = ctx.assetPath;
+            db.sourceAssetPath = ctx.assetPath;
             db.partitionKeys = new List<string>(source.PartitionKeys);
 
             string folder = string.IsNullOrWhiteSpace(audioFolder)

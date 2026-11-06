@@ -1,31 +1,44 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace DynamicDialog
 {
     /// <summary>
     /// A set of authored rules: the global set, or one region's set (talk slide 110).
-    /// Edited in the inspector for now; the .dlg and spreadsheet importers (M4) will write the same asset.
+    /// Made in the inspector (Assets > Create > Dynamic Dialog > Rule Database), or imported from a .dlg file
+    /// or a spreadsheet. Add it to a Dialog Director or a Dialog Region to load its rules.
     /// </summary>
     [CreateAssetMenu(fileName = "DialogRules", menuName = "Dynamic Dialog/Rule Database")]
     public class DialogRuleDatabase : ScriptableObject
     {
+        /// <summary>Fact keys to bucket rules by. Empty means concept and who.</summary>
         [Tooltip("Fact keys to bucket rules by. Empty = concept, who.")]
         public List<string> partitionKeys = new List<string>();
 
+        /// <summary>The rules, in authored order.</summary>
         public List<RuleDefinition> rules = new List<RuleDefinition>();
 
-        /// <summary>The .dlg or spreadsheet this database was imported from. Empty for inspector-made databases.</summary>
-        [HideInInspector] public string sourcePath;
+        // Written by the importers.
+        [SerializeField, HideInInspector, FormerlySerializedAs("sourcePath")] internal string sourceAssetPath;
 
-        public bool IsImported => !string.IsNullOrEmpty(sourcePath);
+        /// <summary>The .dlg or spreadsheet this database was imported from. Empty for inspector-made databases.</summary>
+        public string SourcePath => sourceAssetPath ?? "";
+
+        /// <summary>Old name of <see cref="SourcePath"/>.</summary>
+        [Obsolete("Use SourcePath.")]
+        public string sourcePath => SourcePath;
+
+        /// <summary>True when this database was imported from a file, so it is edited there, not in the inspector.</summary>
+        public bool IsImported => !string.IsNullOrEmpty(sourceAssetPath);
 
         [NonSerialized] RuleSet compiled;
 
         /// <summary>The compiled rule set, built on first use and cached until the asset changes.</summary>
         public RuleSet RuleSet => compiled ?? (compiled = Compile());
 
+        /// <summary>Builds a new rule set from the current rules, without caching it. Rules that fail to compile are logged and skipped.</summary>
         public RuleSet Compile()
         {
             var built = new List<Rule>(rules.Count);

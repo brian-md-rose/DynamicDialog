@@ -46,6 +46,7 @@ namespace DynamicDialog.Editor
 
         List<(string path, DialogRuleDatabase db)> Databases => databaseCache ?? (databaseCache = ProjectDatabases());
 
+        /// <summary>Opens the debugger window.</summary>
         [MenuItem("Window/Dynamic Dialog/Debugger")]
         public static DialogDebuggerWindow Open() => GetWindow<DialogDebuggerWindow>("Dialog Debugger");
 

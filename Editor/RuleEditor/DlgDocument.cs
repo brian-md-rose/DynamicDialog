@@ -9,7 +9,7 @@ using UnityEngine;
 namespace DynamicDialog.Editor
 {
     [Serializable]
-    public class DlgCriterion
+    internal class DlgCriterion
     {
         public string key = "";
         public CriterionOp op = CriterionOp.Equals;
@@ -24,7 +24,7 @@ namespace DynamicDialog.Editor
     }
 
     [Serializable]
-    public class DlgLine
+    internal class DlgLine
     {
         public string text = "";
         public string audio = "";
@@ -34,7 +34,7 @@ namespace DynamicDialog.Editor
     }
 
     [Serializable]
-    public class DlgWrite
+    internal class DlgWrite
     {
         public FactScope scope = FactScope.Speaker;
         public string character = "";
@@ -46,7 +46,7 @@ namespace DynamicDialog.Editor
     }
 
     [Serializable]
-    public class DlgFollowup
+    internal class DlgFollowup
     {
         public FollowupTarget target = FollowupTarget.Character;
         public string character = "";
@@ -55,7 +55,7 @@ namespace DynamicDialog.Editor
     }
 
     [Serializable]
-    public class DlgRule
+    internal class DlgRule
     {
         /// <summary>Comment lines written above the rule, kept as raw text (each line starts with # or //, or is blank).</summary>
         public string comment = "";
@@ -87,7 +87,7 @@ namespace DynamicDialog.Editor
     /// writer, keeping the file's comments: the text above the first rule stays at the top, comments
     /// above a rule travel with that rule, and comments inside a rule move to just above it.
     /// </summary>
-    public class DlgDocument : ScriptableObject
+    internal class DlgDocument : ScriptableObject
     {
         public string path;
         public string header = "";

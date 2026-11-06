@@ -56,7 +56,7 @@ namespace DynamicDialog.Addressables.Tests
 
             var line = nick.Speak("Talk");
             Assert.AreEqual("swampLine", line?.Rule.Name);
-            Assert.AreEqual("swamp", director.Recorder.Latest(nick.Who).Query.GetSymbol(RegionFacts.RegionFact).Name);
+            Assert.AreEqual("swamp", director.Recorder.Latest(nick.Who).Query.GetSymbol(WellKnownFacts.Region).Name);
             nick.StopLine();
 
             var loadedDb = region.LoadedDatabase;

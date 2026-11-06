@@ -77,7 +77,7 @@ rule NickSwamp
   then Rochelle Reply
 ");
             Assert.IsNotNull(db, "the .dlg imported as a DialogRuleDatabase");
-            Assert.AreEqual(Folder + "/swamp.dlg", db.sourcePath);
+            Assert.AreEqual(Folder + "/swamp.dlg", db.SourcePath);
             CollectionAssert.AreEqual(new[] { "concept", "who" }, db.partitionKeys);
 
             var rule = db.rules.Single();
@@ -213,7 +213,9 @@ rule NickSwamp
                                     $"Sets: {string.Join(",", director.Engine.Matcher.Sets.Select(s => s.Name + ":" + s.Rules.Count))}");
             director.Engine.Trace = null;
             Assert.AreEqual("Before", first.Rule.Name);
-            yield return new WaitForSeconds(0.1f);
+            // Let the line end. Edit mode tests may only yield null on older test frameworks (1.1.x), so no WaitForSeconds.
+            float lineEnds = Time.time + 0.1f;
+            for (int frame = 0; Time.time < lineEnds && frame < 1000; frame++) yield return null;
 
             File.WriteAllText(path, "rule After\n  who Nick\n  concept Talk\n  say \"two\"\n");
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport | ImportAssetOptions.ForceUpdate);

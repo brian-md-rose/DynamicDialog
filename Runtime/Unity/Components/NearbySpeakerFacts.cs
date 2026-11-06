@@ -12,7 +12,9 @@ namespace DynamicDialog
     [AddComponentMenu("Dynamic Dialog/Nearby Speaker Facts")]
     public class NearbySpeakerFacts : MonoBehaviour, IFactProvider
     {
-        public static readonly Symbol NearbySpeakersFact = Symbol.Of("nearby_speakers");
+        /// <summary>Old name of <see cref="WellKnownFacts.NearbySpeakers"/>.</summary>
+        [Obsolete("Use WellKnownFacts.NearbySpeakers.")]
+        public static readonly Symbol NearbySpeakersFact = WellKnownFacts.NearbySpeakers;
 
         static readonly Dictionary<Symbol, Symbol> nearKeys = new Dictionary<Symbol, Symbol>();
 
@@ -20,6 +22,7 @@ namespace DynamicDialog
 
         void Awake() => self = GetComponent<DialogSpeaker>();
 
+        /// <inheritdoc/>
         public void AddFacts(Query query)
         {
             var director = self.Director;
@@ -31,13 +34,13 @@ namespace DynamicDialog
                 count++;
                 query.Set(NearKey(other.Character.Who), 1f);
             }
-            query.Set(NearbySpeakersFact, count);
+            query.Set(WellKnownFacts.NearbySpeakers, count);
         }
 
         /// <summary>The "near_&lt;who&gt;" key for a character, cached so queries don't build strings.</summary>
         public static Symbol NearKey(Symbol who)
         {
-            if (!nearKeys.TryGetValue(who, out var key)) nearKeys[who] = key = Symbol.Of("near_" + who.Name);
+            if (!nearKeys.TryGetValue(who, out var key)) nearKeys[who] = key = Symbol.Of(WellKnownFacts.NearPrefix + who.Name);
             return key;
         }
     }

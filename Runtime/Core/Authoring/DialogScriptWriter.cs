@@ -12,6 +12,9 @@ namespace DynamicDialog
     /// </summary>
     public static class DialogScriptWriter
     {
+        /// <summary>Writes rules as .dlg text that <see cref="DialogScriptParser.Parse"/> reads back to the same rules.</summary>
+        /// <param name="rules">The rules to write.</param>
+        /// <param name="partitionKeys">Written as an "@partition" line when not empty.</param>
         public static string ToDlg(IEnumerable<RuleSource> rules, IEnumerable<string> partitionKeys = null)
         {
             var sb = new StringBuilder();

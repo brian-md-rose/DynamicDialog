@@ -10,7 +10,9 @@ namespace DynamicDialog
     /// </summary>
     public interface IDialogLocalizer
     {
+        /// <summary>The translated subtitle for <paramref name="key"/>, or null to keep <paramref name="line"/>'s authored text.</summary>
         string GetText(string key, DialogLineDefinition line);
+        /// <summary>The translated voice clip for <paramref name="key"/>, or null to keep <paramref name="line"/>'s authored clip.</summary>
         AudioClip GetClip(string key, DialogLineDefinition line);
     }
 }

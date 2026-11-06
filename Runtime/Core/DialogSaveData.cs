@@ -12,32 +12,44 @@ namespace DynamicDialog
     [Serializable]
     public class DialogSaveData
     {
+        /// <summary>Format version of this save data.</summary>
         public int version = 1;
+        /// <summary>World memory.</summary>
         public List<FactMemoryEntry> world = new List<FactMemoryEntry>();
+        /// <summary>Each character's memory. Characters with no facts are left out.</summary>
         public List<CharacterMemorySave> characters = new List<CharacterMemorySave>();
+        /// <summary>Once and cooldown state of every rule that has played.</summary>
         public List<RuleStateSave> rules = new List<RuleStateSave>();
     }
 
+    /// <summary>One character's saved memory.</summary>
     [Serializable]
     public class CharacterMemorySave
     {
+        /// <summary>The character's name.</summary>
         public string who;
+        /// <summary>Its facts.</summary>
         public List<FactMemoryEntry> facts = new List<FactMemoryEntry>();
     }
 
+    /// <summary>One rule's saved once and cooldown state.</summary>
     [Serializable]
     public class RuleStateSave
     {
         /// <summary>The rule set's name (a database's asset name).</summary>
         public string set;
+        /// <summary>The rule's name.</summary>
         public string rule;
+        /// <summary>A once rule that has been used.</summary>
         public bool disabled;
+        /// <summary>How many times it played.</summary>
         public int timesFired;
 
         /// <summary>Seconds between the rule last playing and the save, or -1 if it never played.</summary>
         public float secondsSinceFired = -1f;
     }
 
+    /// <summary>Saves and restores a <see cref="DialogEngine"/>'s memory and rule state.</summary>
     public static class DialogSaveExtensions
     {
         /// <summary>Captures memory and rule state. Only rules that have played are saved.</summary>
