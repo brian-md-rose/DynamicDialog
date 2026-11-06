@@ -4,10 +4,10 @@ using UnityEngine;
 namespace DynamicDialog
 {
     /// <summary>
-    /// A no-setup subtitle display using IMGUI, for prototypes and debugging.
-    /// Ship your own UI by listening to <see cref="DialogSpeaker.AnyLineStarted"/> or a speaker's onSubtitle event.
+    /// <b>Debug tool.</b> A no-setup subtitle display using IMGUI, for prototypes and debugging; not meant to ship.
+    /// For a shipping game use the Dialog Subtitle Bar or Dialog Speech Bubbles prefabs, or your own <see cref="IDialogPresenter"/>.
     /// </summary>
-    [AddComponentMenu("Dynamic Dialog/Subtitle Overlay (Debug)")]
+    [AddComponentMenu("Dynamic Dialog/Debug/Subtitle Overlay")]
     public class DialogSubtitleOverlay : MonoBehaviour
     {
         [Tooltip("Also show the rule name and concept for each line.")]

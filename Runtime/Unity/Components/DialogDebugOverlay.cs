@@ -3,11 +3,11 @@ using UnityEngine;
 namespace DynamicDialog
 {
     /// <summary>
-    /// Draws a label over each speaker in the Game view: its name, the line it's saying, and its
+    /// <b>Debug tool</b> (IMGUI; not meant to ship). Draws a label over each speaker in the Game view: its name, the line it's saying, and its
     /// latest lookup (concept and winning rule, or "no match"). Needs lookup recording on the
     /// director. Toggle <see cref="visible"/> from your own debug key or menu.
     /// </summary>
-    [AddComponentMenu("Dynamic Dialog/Debug Overlay")]
+    [AddComponentMenu("Dynamic Dialog/Debug/Debug Overlay")]
     public class DialogDebugOverlay : MonoBehaviour
     {
         /// <summary>Whether labels are drawn. Toggle it from your own debug key or menu.</summary>

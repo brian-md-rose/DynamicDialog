@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Compile and doc-comment check for Runtime/Presentation (uGUI + TextMeshPro).
+       uGUI and TextMeshPro are packages, not editor DLLs, so this needs a Unity project that has compiled them.
+       Override with: dotnet build -p:UnityScriptAssemblies="<Project>/Library/ScriptAssemblies" -p:UnityManaged="..." -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CS0649</NoWarn>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DefineConstants>$(DefineConstants);UNITY_2023_1_OR_NEWER;DYNAMIC_DIALOG_UGUI;DYNAMIC_DIALOG_TMP</DefineConstants>
+    <UnityManaged Condition="'$(UnityManaged)' == ''">C:/Program Files/Unity/Hub/Editor/6000.5.5f1/Editor/Data/Managed/UnityEngine</UnityManaged>
+    <UnityScriptAssemblies Condition="'$(UnityScriptAssemblies)' == ''">D:/Unity Projects/ProjectConverse/Library/ScriptAssemblies</UnityScriptAssemblies>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../Runtime/Presentation/**/*.cs" />
+    <ProjectReference Include="../Unity/DynamicDialog.Unity.csproj" />
+    <ProjectReference Include="../Core/DynamicDialog.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(UnityManaged)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UIModule"><HintPath>$(UnityManaged)/UnityEngine.UIModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.TextRenderingModule"><HintPath>$(UnityManaged)/UnityEngine.TextRenderingModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.Scripting" Condition="Exists('$(UnityManaged)/Unity.Scripting.dll')"><HintPath>$(UnityManaged)/Unity.Scripting.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UI"><HintPath>$(UnityScriptAssemblies)/UnityEngine.UI.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.TextMeshPro"><HintPath>$(UnityScriptAssemblies)/Unity.TextMeshPro.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>
