@@ -21,6 +21,31 @@
 - The Rule Validator reports a rule that only raises events as doing something, and warns about an event name used once that is close to one used elsewhere ("Did you mean 'GiveItem'?").
 - Logging lines on the Dialog Director also logs each event.
 
+#### Presentation
+- **Dialog Speech Bubbles** and **Dialog Subtitle Bar**: production dialog UI, built with uGUI and TextMeshPro, shipped as restylable
+  prefabs (`Runtime/Presentation/Prefabs`) and added with **GameObject > Dynamic Dialog > Speech Bubbles / Subtitle Bar**.
+  - Speech bubbles follow their speaker, fade in and out, size themselves to the text, and point a tail at the speaker. Overlapping
+    bubbles are moved apart (newer above, or below at the top of the screen), or only the newest is shown (`DialogOverlapMode`).
+    A speaker at the screen edge or behind the camera keeps its bubble on the nearest edge, or it is hidden (`DialogOffscreenMode`).
+  - The subtitle bar shows a row per line with an optional colored speaker name, stacking up to a limit or replacing.
+  - Both have a typewriter reveal (`DialogTypewriter`) that speeds up when needed so a line is fully shown before it ends.
+  - **Dialog Bubble Anchor** component sets where a speaker's bubble points (for example, the head bone).
+  - These live in their own assemblies (`DynamicDialog.Presentation`, `DynamicDialog.Presentation.Editor`), which only compile when
+    uGUI and TextMeshPro are installed (`com.unity.ugui` 2.x on Unity 6, or `com.unity.ugui` plus `com.unity.textmeshpro` before).
+    There is no new package dependency.
+- **Presenter interface for your own UI:** `IDialogPresenter` (`OnLineStarted`, `OnLineEnded`, `OnLineInterrupted`), registered
+  with `DialogPresenters.Register`/`Unregister` (also `All`, `Playing`, `IsRegistered`), or by deriving from `DialogPresenterBehaviour`.
+  `DialogPresentedLine` carries the speaker, line, variation, localized text, start time and duration. A presenter that throws is
+  logged and doesn't stop the others; one registered mid-line is told about lines already playing.
+- Reusable presentation logic: `DialogTypewriter`, `DialogOverlap` (`SelectVisible`, `SeparateVertically`), `DialogScreenPlacement`
+  (`Place`, `IsOnScreen`, `EdgePoint`) and `DialogBubblePlacement`.
+- `DialogSpeaker.CurrentStartTime` and `CurrentDuration`.
+- `Tests~/DotNet/Presentation` compile- and doc-checks the presentation assembly against a Unity project's compiled uGUI and TextMeshPro.
+
+### Changed (presentation)
+- The IMGUI overlays are labelled as debug tools: they moved to **Add Component > Dynamic Dialog > Debug** (*Subtitle Overlay*,
+  *Debug Overlay*), and their docs point to the new prefabs for shipping. Existing scenes are unaffected.
+
 ### Changed (API freeze for 1.0)
 These renames keep the old name as an `[Obsolete]` member that forwards to the new one, so 0.6 code still compiles, with a warning that names the replacement.
 

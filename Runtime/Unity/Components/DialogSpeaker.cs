@@ -100,6 +100,8 @@ namespace DynamicDialog
         string currentKey, currentText;
         AudioClip currentClip;
         double endTime;
+        double startTime;
+        float lineDuration;
         double nextIdleTime;
         Symbol idleConceptSymbol;
 
@@ -124,6 +126,10 @@ namespace DynamicDialog
         public string CurrentText => currentText;
         /// <summary>The current line's clip, after localization.</summary>
         public AudioClip CurrentClip => currentClip;
+        /// <summary>When the current line started, in <see cref="Time.timeAsDouble"/> seconds. 0 when not speaking.</summary>
+        public double CurrentStartTime => current != null ? startTime : 0d;
+        /// <summary>How long the current line lasts, in seconds. 0 when not speaking.</summary>
+        public float CurrentDuration => current != null ? lineDuration : 0f;
 
         /// <summary>This speaker's persistent memory (shared by speakers with the same name).</summary>
         public FactMemory Memory => character?.Memory;
@@ -195,10 +201,13 @@ namespace DynamicDialog
                 duration = EstimateDuration(v.duration, currentClip, currentText);
                 if (!string.IsNullOrEmpty(currentText)) onSubtitle.Invoke(currentText);
             }
-            endTime = Time.timeAsDouble + duration;
+            startTime = Time.timeAsDouble;
+            lineDuration = duration;
+            endTime = startTime + duration;
 
             foreach (var h in handlers) h.OnLineStarted(this, line, currentVariation);
             AnyLineStarted?.Invoke(this, line, currentVariation);
+            DialogPresenters.LineStarted(this, line, currentVariation, currentText, startTime, duration);
         }
 
         /// <summary>How long a variation lasts: its set duration, else the clip's length, else an estimate from the text.</summary>
@@ -229,6 +238,7 @@ namespace DynamicDialog
             foreach (var h in handlers) h.OnLineEnded(this, line, completed);
             onLineEnded.Invoke();
             AnyLineEnded?.Invoke(this, line, completed);
+            DialogPresenters.LineEnded(line, completed);
             director?.Conductor?.EndLine(line, completed);
         }
 

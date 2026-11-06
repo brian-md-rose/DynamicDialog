@@ -1,0 +1,23 @@
+{
+    "name": "DynamicDialog.Presentation",
+    "rootNamespace": "DynamicDialog",
+    "references": [
+        "DynamicDialog",
+        "DynamicDialog.Core",
+        "UnityEngine.UI",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": ["DYNAMIC_DIALOG_UGUI", "DYNAMIC_DIALOG_TMP"],
+    "versionDefines": [
+        { "name": "com.unity.ugui", "expression": "1.0.0", "define": "DYNAMIC_DIALOG_UGUI" },
+        { "name": "com.unity.ugui", "expression": "2.0.0", "define": "DYNAMIC_DIALOG_TMP" },
+        { "name": "com.unity.textmeshpro", "expression": "3.0.0", "define": "DYNAMIC_DIALOG_TMP" }
+    ],
+    "noEngineReferences": false
+}

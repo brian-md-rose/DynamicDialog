@@ -47,11 +47,14 @@ In Unity 2021.3 or later, open Package Manager, choose **Add package from diskâ€
 | Dialog Addressable Region | region scene | Same, but streams the database through Addressables (only when the Addressables package is installed) |
 | Dialog Event Listener | anywhere | UnityEvents for the game events rules raise with `do` |
 | Dialog Fact Listener | anywhere | UnityEvents when a fact in world or character memory changes |
-| Subtitle Overlay (Debug) | anywhere | IMGUI subtitles, optionally with rule names |
-| Debug Overlay | anywhere | Labels over each speaker: current line and latest lookup (green played, yellow matched but not played, red no match) |
+| Dialog Speech Bubbles | screen-space Canvas | Speech bubbles over speakers' heads (see **Showing lines**) |
+| Dialog Subtitle Bar | screen-space Canvas | Subtitles along the bottom of the screen (see **Showing lines**) |
+| Dialog Bubble Anchor | speaker | Where that speaker's bubble points, e.g. the head bone |
+| Subtitle Overlay *(debug tool)* | anywhere | IMGUI subtitles, optionally with rule names. For prototyping; not meant to ship |
+| Debug Overlay *(debug tool)* | anywhere | IMGUI labels over each speaker: current line and latest lookup (green played, yellow matched but not played, red no match). Not meant to ship |
 
 Your own facts: implement `IFactProvider` on a component next to a speaker (character facts) or the director (world facts).
-React to lines: implement `IDialogLineHandler`, use a speaker's `onSubtitle` event, or the static `DialogSpeaker.AnyLineStarted`.
+React to lines: write an `IDialogPresenter` (see **Showing lines**), implement `IDialogLineHandler` on a speaker, use a speaker's `onSubtitle` event, or the static `DialogSpeaker.AnyLineStarted`.
 To trigger game code from a rule, use a `do` event (see **Writing rules**) rather than checking rule names.
 
 Code can trigger lines with `speaker.Speak("OnHurt", q => q.Set("damage", 30))`. Pass `interrupt: true` to cut off the current line,
@@ -124,6 +127,46 @@ then anywhere in the project. Missing clips are a warning, and the line still sh
 rule answers, conditions that contradict each other, likely typos in fact names, duplicate names, and rules that do nothing.
 List the facts your own code provides in its *Facts from code* field. Each database's inspector also has **Check Rules**,
 **Export .dlg** (to move inspector-made rules into text) and **Export Recording Script** (a CSV for voice sessions).
+
+## Showing lines
+
+Two ready-made presenters ship as prefabs in `Runtime/Presentation/Prefabs`. Add them with **GameObject > Dynamic Dialog >
+Speech Bubbles** or **Subtitle Bar**. Both are uGUI with TextMeshPro, so they need the uGUI package and, on Unity 2021.3 and
+2022, the TextMeshPro package. Both are included in Unity's default templates. Without them, the presentation assembly doesn't
+compile, and the rest of the package works as before. Import TMP Essential Resources the first time Unity asks you to.
+
+- **Dialog Speech Bubbles:** a bubble over each speaker's head (or at its **Dialog Bubble Anchor**). Bubbles fade in and out and
+  size themselves to their text. A tail points at the speaker. Settings:
+  - **Overlap:** *Stack* (the default) keeps a bubble per speaker and moves overlapping bubbles apart. Newer bubbles go above,
+    or below when there is no room. *Replace* shows only the newest line; when it ends, the next newest still playing comes back.
+    *Max Bubbles* caps a stack.
+  - **Screen edges:** with *Keep On Screen* (the default), a speaker past the edge of the screen keeps its bubble at the
+    nearest edge, and a speaker behind the camera gets its bubble on the edge on its side. The tail points their way. *Hide*
+    hides those bubbles instead. *Max Distance* hides far-away speakers.
+- **Dialog Subtitle Bar:** a row per line along the bottom of the screen, with an optional colored speaker name. Overlap is
+  *Stack* (up to *Max Rows*, oldest dropped) or *Replace*.
+- **Typewriter** (both): text appears at *Characters Per Second*, and speeds up when needed, so the whole line is visible by
+  *Finish By* of the line's duration. Turn it off to show lines at once. Rich-text tags aren't counted.
+
+**Restyling:** make a prefab variant of *Dialog Speech Bubble* (the single bubble) or *Dialog Subtitle Bar*, then change its sprites,
+colors, TextMeshPro fonts, padding, maximum width and fade times. Assign your bubble variant to *Bubble Prefab* on Dialog Speech
+Bubbles. Override `DialogSpeechBubble.Layout` to arrange a bubble differently.
+
+**Your own UI:** implement `IDialogPresenter` and register it with `DialogPresenters.Register`, or derive a component from
+`DialogPresenterBehaviour`, which registers itself while enabled. Every line any speaker plays reaches every registered presenter:
+`OnLineStarted(line)`, then either `OnLineEnded` (it played to the end) or `OnLineInterrupted` (it was cut off, stopped, or its
+speaker was disabled). `DialogPresentedLine` carries the speaker, the line, its localized `Text`, `StartTime` and `Duration`.
+A presenter registered mid-line is told about lines already playing. `DialogTypewriter`, `DialogOverlap` and `DialogScreenPlacement`
+are the built-in components' logic, for reuse in your own UI.
+
+```csharp
+public class MyCaptions : DialogPresenterBehaviour
+{
+    public TMPro.TMP_Text label;
+    public override void OnLineStarted(DialogPresentedLine line) => label.text = line.SpeakerName + ": " + line.Text;
+    public override void OnLineEnded(DialogPresentedLine line) => label.text = "";
+}
+```
 
 ## Localization
 
@@ -207,7 +250,8 @@ engine.Commit(line);   // call when the line starts playing
 ## Tests
 
 `Tests/Editor` holds the core NUnit tests (EditMode), `Tests/EditorIntegration` tests the importers and editor tools,
-and `Tests/Runtime` holds Play Mode tests for the components.
+and `Tests/Runtime` holds Play Mode tests for the components. `Tests/Presentation` holds Play Mode tests for the speech bubble
+and subtitle bar prefabs (they need TMP Essential Resources imported).
 To run them in Unity, add `"testables": ["com.dynamicdialog"]` to your project's `Packages/manifest.json`.
 The core tests also run outside Unity:
 
@@ -217,4 +261,6 @@ dotnet test "Tests~/DotNet/Tests/DynamicDialog.Core.Tests.csproj"
 
 `Tests~/DotNet/Core` builds `Runtime/Core` against `netstandard2.1` with warnings treated as errors.
 That catches any API Unity doesn't provide. `Tests~/DotNet/Unity` compile-checks `Runtime/Unity` against an installed editor's DLLs
-(set `-p:UnityManaged=...` if yours isn't 6000.5.5f1). Unity ignores folders whose names end in `~`.
+(set `-p:UnityManaged=...` if yours isn't 6000.5.5f1). `Tests~/DotNet/Presentation` does the same for `Runtime/Presentation`;
+uGUI and TextMeshPro are packages, so it also needs a Unity project's compiled `Library/ScriptAssemblies`
+(`-p:UnityScriptAssemblies=...`). Unity ignores folders whose names end in `~`.
