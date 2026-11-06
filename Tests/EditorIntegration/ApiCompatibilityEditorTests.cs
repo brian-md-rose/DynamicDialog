@@ -93,6 +93,10 @@ namespace DynamicDialog.Editor.Tests
         [Test]
         public void RuleEditor_OpenAndObsoleteShowWindow_ReturnTheSameWindow()
         {
+            // Opening an editor window logs an error without a graphics device (batch mode with -nographics).
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+                Assert.Ignore("Needs a graphics device to open an editor window.");
+
             // Leave a window the user already had open alone.
             bool wasOpen = EditorWindow.HasOpenInstances<DialogRuleEditorWindow>();
             var opened = DialogRuleEditorWindow.Open();
