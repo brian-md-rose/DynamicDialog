@@ -64,6 +64,7 @@ namespace DynamicDialog
 
             foreach (var e in s.Events)
                 d.events.Add(new DialogEventDefinition { name = e.Name, args = new List<string>(e.Args), timing = e.Timing });
+            d.formerNames.AddRange(s.FormerNames);
             return d;
         }
 
@@ -128,6 +129,9 @@ namespace DynamicDialog
                     if (e.args != null) es.Args.AddRange(e.args);
                     s.Events.Add(es);
                 }
+            if (d.formerNames != null)
+                foreach (var n in d.formerNames)
+                    if (!string.IsNullOrWhiteSpace(n)) s.FormerNames.Add(n.Trim());
             return s;
         }
 

@@ -98,7 +98,7 @@ namespace DynamicDialog
         public event Action<FactChange> FactChanged;
 
         /// <summary>
-        /// Raised after many facts were replaced at once: once per <see cref="DialogSaveExtensions.LoadState"/>,
+        /// Raised after many facts were replaced at once: once per <see cref="DialogSaveExtensions.LoadState(DialogEngine, DialogSaveData)"/>,
         /// and whenever world or a character's memory is cleared or loaded. Re-read the facts you show.
         /// </summary>
         public event Action FactsReset;

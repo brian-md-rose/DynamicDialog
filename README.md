@@ -87,7 +87,7 @@ rule NickSwampIntro
   once
 ```
 
-The full grammar, including `select`, `forget`, `cooldown`, `weight`, `bonus`, `default`, `@concept` and `@partition`,
+The full grammar, including `select`, `forget`, `cooldown`, `weight`, `bonus`, `default`, `renamed`, `@concept` and `@partition`,
 is documented at the top of `Runtime/Core/Authoring/DialogScriptParser.cs`.
 
 **Game events (`do`)** let rules trigger game code without the code knowing rule names. `do GiveItem glasses`
@@ -114,8 +114,8 @@ file's comments: comments above a rule travel with it, and comments inside a rul
 
 **Spreadsheets** (**Assets > Create > Dynamic Dialog > Dialog Spreadsheet**): save as CSV or TSV and name the file
 `.dlgcsv` or `.dlgtsv`. There is one row per recorded line; a row with an empty `Rule` cell adds a variation to the rule above.
-Known columns are `Rule, Who, Concept, If, Text, Audio, Duration, Anim, Remember, Then, Do, Once, Cooldown, Weight, Bonus, Select`
-(`Do` holds game events: `GiveItem glasses; StartWalking at end`).
+Known columns are `Rule, Who, Concept, If, Text, Audio, Duration, Anim, Remember, Then, Do, Renamed, Once, Cooldown, Weight, Bonus, Select`
+(`Do` holds game events: `GiveItem glasses; StartWalking at end`; `Renamed` holds the rule's former names, see [Saving](#saving)).
 `Notes`, `Comment`, `Actor`, `Status` and columns starting with `#` are ignored. **Any other column is a criterion**
 named after its header: a `Map` column holding `swamp` means `Map == swamp`, and cells can also hold `< 30`, `>= 3`,
 `!= nick`, `30..60`, `exists` or `missing`.
@@ -185,6 +185,34 @@ The rule database inspector's **Export String Table CSV** writes every line's ke
 and which rules have played (so `once` rules stay used and cooldowns carry over). Names are saved as text, so a save
 works across sessions. Region databases that aren't loaded keep their state too, and it is reapplied when they load.
 Lines in progress and pending followups aren't saved. `SaveState()` returns a `DialogSaveData` if you'd rather use your own serializer.
+
+**Saves keep working as the game changes.**
+
+- **Versions.** Each save records its format version (`DialogSaveData.CurrentVersion`, now 2). Older saves, including 0.6 saves
+  (version 1, or 0 if no version was written), are upgraded when they load. A save from a newer version of the package loads
+  as far as this version understands it, with a warning. Loading never throws over an old or half-filled save.
+- **Renamed rules.** Rule state is saved under the rule's name. When you rename a rule, list its old name, and saved games
+  keep its `once` and cooldown state:
+
+  ```
+  rule NurseThanksForGlasses
+    renamed NurseThanks          # one or more former names
+    ...
+  ```
+
+  Spreadsheets have a `Renamed` column, inspector rules a **Former Names** list, and the Rule Editor a **Renamed from**
+  field. After you rename a `once` or cooldown rule there, it offers **Keep Saves** to add the old name for you. The Rule
+  Validator warns when a former name is still another rule's name, or when two rules claim the same one.
+- **Removed rules,** or rules renamed without `renamed`: their saved state isn't applied, and it isn't dropped either. It is
+  kept and written into later saves, so it applies again if the rule comes back or gets a `renamed` line. The director logs a
+  warning that names each one. `DialogDirector.DiscardUnmatchedRuleStates()` drops them on purpose.
+- **Memory** (facts) is stored by character and fact name, not by rule, so renaming or removing rules never affects it.
+- **Reports.** `DialogDirector.LastLoadReport` says what the last load did: the save's version, `RenamedRules`,
+  `UnmatchedRules`, and `WaitingRules` (states for databases that aren't loaded yet). It is updated as regions load. Without
+  the director, `engine.LoadState(data, out DialogLoadReport report)` does the same.
+- **Renaming a database** (the `.dlg` or spreadsheet asset) changes its rule set's name, and saves find rules by set name and
+  rule name. The old set's states then wait, unapplied but kept, for a database with that name. So keep database asset names
+  stable once a game has shipped.
 
 ## Sample
 

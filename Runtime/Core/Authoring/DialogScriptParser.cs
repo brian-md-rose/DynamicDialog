@@ -31,6 +31,7 @@ namespace DynamicDialog
     ///   then Rochelle SwampReply after 1s   # or: then self|any|all Concept
     ///   do GiveItem glasses          # a game event with arguments, raised when the line starts
     ///   do StartWalking at end       # raised when the line ends (dropped if it is interrupted)
+    ///   renamed NickIntro            # former names: saves made under them still apply to this rule
     ///   once
     ///   cooldown 30s
     ///   weight 2
@@ -149,6 +150,10 @@ namespace DynamicDialog
                     case "do":
                         rule.Events.Add(Syntax.ParseDo(ts));
                         break;
+                    case "renamed":
+                        if (ts.AtEnd) throw new FormatException("'renamed' needs the rule's old name, e.g. 'renamed NurseThanksOld'.");
+                        while (!ts.AtEnd) rule.FormerNames.Add(ts.Next().Text);
+                        break;
                     case "once":
                         rule.Once = true;
                         ts.ExpectEnd("once");
@@ -166,7 +171,7 @@ namespace DynamicDialog
                         ts.ExpectEnd("bonus");
                         break;
                     default:
-                        throw new FormatException($"Unknown statement '{head.Text}'. Expected who, concept, if, say, select, remember, forget, then, do, once, cooldown, weight or bonus.");
+                        throw new FormatException($"Unknown statement '{head.Text}'. Expected who, concept, if, say, select, remember, forget, then, do, renamed, once, cooldown, weight or bonus.");
                 }
             }
 

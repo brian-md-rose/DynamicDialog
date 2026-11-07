@@ -172,6 +172,8 @@ namespace DynamicDialog
         public float Weight = 1f;
         /// <summary>Added to the criteria count to make the score ("bonus").</summary>
         public int ScoreBonus;
+        /// <summary>Names the rule had before ("renamed"), so saved once and cooldown state still finds it.</summary>
+        public readonly List<string> FormerNames = new List<string>();
 
         /// <summary>Where the rule starts in its source, for messages.</summary>
         public int SourceLine;
@@ -205,7 +207,7 @@ namespace DynamicDialog
                 events.Add(new DialogEvent(e.Name, e.Args, e.Timing));
 
             return new Rule(Name, criteria, response, writes, followups,
-                Once ? RuleFlags.Once : RuleFlags.None, Cooldown, Weight, ScoreBonus, events);
+                Once ? RuleFlags.Once : RuleFlags.None, Cooldown, Weight, ScoreBonus, events, FormerNames);
         }
     }
 

@@ -106,6 +106,11 @@ namespace DynamicDialog.Editor
         public float cooldown;
         public float weight = 1f;
         public int bonus;
+        /// <summary>Former names ("renamed"), as typed: names separated by spaces or commas.</summary>
+        public string renamed = "";
+
+        /// <summary>The name the rule had when the file was opened, to offer a 'renamed' line after a rename. Empty for new rules.</summary>
+        public string loadedName = "";
 
         // Editor-only UI state, kept here so it survives undo and domain reloads.
         public bool foldConditions = true, foldLines = true, foldWrites = true, foldEvents = true, foldFollowups = true, foldOptions = true, foldComment;
@@ -266,6 +271,8 @@ namespace DynamicDialog.Editor
                 cooldown = s.Cooldown,
                 weight = s.Weight,
                 bonus = s.ScoreBonus,
+                renamed = DlgEvent.ArgsToText(s.FormerNames),
+                loadedName = s.Name ?? "",
             };
             foreach (var c in s.Criteria)
             {
@@ -309,9 +316,10 @@ namespace DynamicDialog.Editor
                 Weight = r.weight,
                 ScoreBonus = r.bonus,
             };
+            s.FormerNames.AddRange(SplitNames(r.renamed));
             foreach (var c in r.criteria)
             {
-                var cs = new CriterionSource { Key = c.key?.Trim() ?? "", Op = c.op, HasDefault = c.hasDefault, Default = c.defaultValue };
+                var cs =new CriterionSource { Key = c.key?.Trim() ?? "", Op = c.op, HasDefault = c.hasDefault, Default = c.defaultValue };
                 if (c.op == CriterionOp.Between) { cs.Value = Number(c.value); cs.Value2 = Number(c.value2); }
                 else if (c.UsesValue) cs.Value = c.valueIsName ? (c.value?.Trim() ?? "") : Number(c.value);
                 s.Criteria.Add(cs);
@@ -355,6 +363,18 @@ namespace DynamicDialog.Editor
         }
 
         public IEnumerable<RuleSource> ToSources() => rules.Select(ToSource);
+
+        /// <summary>
+        /// Names typed in a list field: separated by spaces, commas or semicolons, with quotes around a name
+        /// that contains spaces (the way the .dlg writer quotes it).
+        /// </summary>
+        public static List<string> SplitNames(string text)
+        {
+            var separators = new[] { ',', ';' };
+            if (DlgEvent.TryParseArgs(text ?? "", out var words))
+                return words.SelectMany(w => w.Split(separators)).Select(w => w.Trim()).Where(w => w.Length > 0).ToList();
+            return (text ?? "").Split(new[] { ' ', '\t', ',', ';', '\n', '\r', '"' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+        }
 
         public string ToText()
         {

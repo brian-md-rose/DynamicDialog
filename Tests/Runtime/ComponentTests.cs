@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -409,6 +410,74 @@ namespace DynamicDialog.Tests
             director.AddDatabase(region);
             Assert.IsNull(nick.Speak("Swamp"), "state for a region loaded after the save is applied when it loads");
             StringAssert.Contains("swampOnce", director.SaveStateJson(), "and it is saved again");
+        }
+
+        [UnityTest]
+        public IEnumerator Load06Save_WithRenamedAndRemovedRules_AndARegionLoadedLater()
+        {
+            // Written by 0.6's SaveStateJson, before intro and swampOnce were renamed and cutRule and swampGone removed.
+            const string json06 =
+                "{\"version\":1," +
+                "\"world\":[{\"Key\":\"quest\",\"Value\":2.0,\"SymbolValue\":\"\",\"RemainingSeconds\":0.0}]," +
+                "\"characters\":[{\"who\":\"Nick\",\"facts\":[{\"Key\":\"mood\",\"Value\":0.0,\"SymbolValue\":\"grumpy\",\"RemainingSeconds\":0.0}]}]," +
+                "\"rules\":[" +
+                "{\"set\":\"Global\",\"rule\":\"intro\",\"disabled\":true,\"timesFired\":1,\"secondsSinceFired\":3.0}," +
+                "{\"set\":\"Global\",\"rule\":\"cutRule\",\"disabled\":true,\"timesFired\":1,\"secondsSinceFired\":3.0}," +
+                "{\"set\":\"Swamp\",\"rule\":\"swampOnce\",\"disabled\":true,\"timesFired\":1,\"secondsSinceFired\":3.0}," +
+                "{\"set\":\"Swamp\",\"rule\":\"swampGone\",\"disabled\":true,\"timesFired\":1,\"secondsSinceFired\":3.0}]}";
+
+            var greeting = Rule("greeting", "Nick", "Talk");
+            greeting.once = true;
+            greeting.scoreBonus = 1;
+            greeting.formerNames.Add("intro");
+            database.name = "Global";
+            SetRules(greeting, Rule("generic", "Nick", "Talk", duration: 0.01f));
+            var nick = MakeSpeaker("Nick", Vector3.zero);
+            yield return null;
+
+            LogAssert.Expect(LogType.Warning, new Regex("Global/cutRule"));
+            director.LoadStateJson(json06);
+            var report = director.LastLoadReport;
+            Assert.IsNotNull(report);
+            Assert.AreEqual(1, report.SavedVersion);
+            Assert.IsTrue(report.Upgraded);
+            Assert.AreEqual("Global/intro -> greeting", report.RenamedRules.Single().ToString());
+            Assert.AreEqual("cutRule", report.UnmatchedRules.Single().rule);
+            Assert.AreEqual(2, report.WaitingRules.Count, "the Swamp region isn't loaded yet");
+
+            Assert.AreEqual("generic", nick.Speak("Talk").Rule.Name, "the renamed once rule stays used");
+            nick.StopLine();
+            Assert.IsTrue(nick.Memory.TryGet("mood", Time.timeAsDouble, out float mood));
+            Assert.AreEqual(Symbol.Of("grumpy").AsValue, mood, "memory doesn't depend on rule names");
+
+            // The region loads later. swampOnce is now swampHello; swampGone was removed.
+            var region = Track(ScriptableObject.CreateInstance<DialogRuleDatabase>());
+            region.name = "Swamp";
+            var swamp = Rule("swampHello", "Nick", "Swamp", duration: 0.01f);
+            swamp.once = true;
+            swamp.formerNames.Add("swampOnce");
+            region.rules.Add(swamp);
+            LogAssert.Expect(LogType.Warning, new Regex("Swamp/swampGone"));
+            director.AddDatabase(region);
+            Assert.IsNull(nick.Speak("Swamp"), "the renamed region rule stays used");
+            Assert.AreEqual(2, report.RenamedRules.Count);
+            Assert.AreEqual(2, report.UnmatchedRules.Count);
+            Assert.IsEmpty(report.WaitingRules);
+            director.RemoveDatabase(region);
+
+            // Nothing is lost: renamed rules save under their new names, unmatched states under their old ones.
+            var resaved = JsonUtility.FromJson<DialogSaveData>(director.SaveStateJson());
+            Assert.AreEqual(DialogSaveData.CurrentVersion, resaved.version);
+            var names = resaved.rules.Select(r => r.ToString()).ToList();
+            CollectionAssert.IsSubsetOf(new[] { "Global/greeting", "Global/cutRule", "Swamp/swampHello", "Swamp/swampGone" }, names);
+            CollectionAssert.DoesNotContain(names, "Global/intro");
+            CollectionAssert.DoesNotContain(names, "Swamp/swampOnce");
+
+            // A game can drop them on purpose. Only loaded databases' states count: Swamp isn't loaded.
+            Assert.AreEqual(1, director.DiscardUnmatchedRuleStates());
+            names = JsonUtility.FromJson<DialogSaveData>(director.SaveStateJson()).rules.Select(r => r.ToString()).ToList();
+            CollectionAssert.DoesNotContain(names, "Global/cutRule");
+            CollectionAssert.Contains(names, "Swamp/swampGone");
         }
 
         [UnityTest]

@@ -155,6 +155,10 @@ namespace DynamicDialog
         /// <summary>Added to the criteria count to make the score.</summary>
         public int scoreBonus;
 
+        /// <summary>Names the rule had before ("renamed" in .dlg), so saved once and cooldown state still finds it.</summary>
+        [Tooltip("Names this rule had before. Saved games that remember the rule under an old name (for once and cooldown) still apply to it.")]
+        public List<string> formerNames = new List<string>();
+
 
         /// <summary>Line in the source file this rule was imported from (0 if made in the inspector).</summary>
         [HideInInspector] public int sourceLine;

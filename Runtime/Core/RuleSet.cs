@@ -72,6 +72,19 @@ namespace DynamicDialog
         public Rule FindRule(string ruleName) =>
             Rules.FirstOrDefault(r => string.Equals(r.Name, ruleName, StringComparison.OrdinalIgnoreCase));
 
+        /// <summary>
+        /// The rule with this name (ignoring case). If no rule has it and <paramref name="includeFormerNames"/> is set,
+        /// the first rule that lists it as a former name (see <see cref="Rule.FormerNames"/>). Null if neither.
+        /// </summary>
+        public Rule FindRule(string ruleName, bool includeFormerNames)
+        {
+            var rule = FindRule(ruleName);
+            if (rule != null || !includeFormerNames) return rule;
+            foreach (var r in Rules)
+                if (r.WasNamed(ruleName)) return r;
+            return null;
+        }
+
         /// <summary>Resets every rule's once and cooldown state.</summary>
         public void ResetState()
         {

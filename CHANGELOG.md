@@ -42,6 +42,47 @@
 - `DialogSpeaker.CurrentStartTime` and `CurrentDuration`.
 - `Tests~/DotNet/Presentation` compile- and doc-checks the presentation assembly against a Unity project's compiled uGUI and TextMeshPro.
 
+#### Save data that lasts
+- **Save versions.** `DialogSaveData.CurrentVersion` is 2. 0.6 wrote version 1, and version 0 means no version was written; both
+  load as the 0.6 format. `DialogSaveData.Upgrade()` brings data up to date in place, and loading calls it for you. It also
+  repairs half-filled data: missing lists, empty entries, negative counts and invalid times. A save from a newer version loads
+  what this version understands and is reported. Loading never throws for any of these.
+- **`renamed` statement** in `.dlg` files: `renamed OldName [Older ...]` lists a rule's former names. Saved once and cooldown
+  state recorded under a former name is applied to the renamed rule, and saved again under its new name. Also supported as a
+  spreadsheet **`Renamed`** column (also `Renamed From` or `Former Names`; names separated by spaces, commas or semicolons), an
+  inspector **Former Names** list (`RuleDefinition.formerNames`), and a **Renamed from** field in the Rule Editor. After a
+  `once` or cooldown rule is renamed there, the Rule Editor offers **Keep Saves**, which adds the old name.
+- The Rule Validator warns when a former name is still another rule's name in the same database (that rule gets the state),
+  or when two rules list the same former name. It notes a rule that lists its own name.
+- **Unmatched rule state is kept, not lost.** A saved state that matches no rule in a loaded database, because the rule was
+  removed or renamed without `renamed`, is not applied. It is kept, written into later saves, and applies again if the rule
+  returns or gains a `renamed` line, including after a hot reload. The Dialog Director logs a warning naming each one.
+  `DialogDirector.DiscardUnmatchedRuleStates()` drops them on purpose.
+- **Load reports:** `DialogLoadReport` (`SavedVersion`, `Upgraded`, `FromNewerVersion`, `RenamedRules`, `UnmatchedRules`,
+  `WaitingRules`, `HasWarnings`, and a readable `ToString()`) and `RuleRename`. Get one from `DialogDirector.LastLoadReport`,
+  which is updated as region databases load, or from the new
+  `DialogSaveExtensions.LoadState(engine, data, out DialogLoadReport report)` overload.
+- Core API: `Rule.FormerNames`, `Rule.WasNamed`, a `formerNames` parameter on the `Rule` constructor, `RuleBuilder.Renamed(...)`,
+  `RuleSet.FindRule(name, includeFormerNames)`, `RuleSource.FormerNames`, `RuleStateSave.Clone()` and `ToString()`,
+  `DialogSaveExtensions.CaptureState(set, rule, now)`, and an `ApplyRuleStates` overload that fills a report. If two saved
+  states reach the same rule, one under its name and one under a former name, they are combined. The rule counts as used if
+  either says so, the play counts are added, and the most recent play sets the cooldown.
+- Tests: loading a 0.6 save (as data and as 0.6 JSON), saves without a version and from a newer version, renamed and removed
+  rules, region databases loaded after the save, and `renamed` in `.dlg`, spreadsheets, the validator and the Rule Editor.
+
+### Changed (save data)
+- 0.6 saves load unchanged; nothing needs migrating. Saves written now (version 2) have the same fields, so 0.6 can still read them.
+- `DialogSaveExtensions.LoadState` upgrades the `DialogSaveData` you pass in place: it sets `version`, replaces missing lists,
+  and removes empty entries. The rule states it returns are copies, so the director's cooldown aging no longer changes your
+  data. *Migration:* if you need the original data unchanged, pass a copy.
+- The Dialog Director no longer drops kept rule states when a region database unloads, if they match none of its rules.
+  It also logs a warning on load when saved states match no rule. Because of this, a save can keep entries for rules removed
+  long ago. *Migration:* call `DialogDirector.DiscardUnmatchedRuleStates()` once the warning shows they really are gone.
+- **Spreadsheets:** a column headed `Renamed`, `Renamed From` or `Former Names` now holds former rule names. Before, it was a
+  criterion on a fact of that name. *Migration:* rename such a column, or use an `If` column (`renamed == x`).
+- `Rule`'s constructor gained an optional last parameter, `formerNames`. Source code still compiles, but assemblies compiled
+  against the old constructor must be recompiled.
+
 ### Changed (presentation)
 - The IMGUI overlays are labelled as debug tools: they moved to **Add Component > Dynamic Dialog > Debug** (*Subtitle Overlay*,
   *Debug Overlay*), and their docs point to the new prefabs for shipping. Existing scenes are unaffected.

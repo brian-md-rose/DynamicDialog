@@ -73,8 +73,17 @@ namespace DynamicDialog
         readonly Queue<DialogLine> history = new Queue<DialogLine>();
         // Rule state for databases that aren't loaded: from a save, or kept when a region unloaded.
         // secondsSinceFired is relative to pendingAsOf; AgePending brings it up to date.
+        // Also holds states that match no rule of a loaded database (removed or renamed rules): they are
+        // kept and saved again rather than dropped.
         List<RuleStateSave> pendingRuleStates = new List<RuleStateSave>();
         double pendingAsOf;
+
+        /// <summary>
+        /// What happened in the most recent <see cref="LoadState"/>: the save's version, rule states applied
+        /// to renamed rules, states that match no rule, and states waiting for databases that aren't loaded.
+        /// Updated as databases load later (for example by a region). Null until a save is loaded.
+        /// </summary>
+        public DialogLoadReport LastLoadReport { get; private set; }
 
         /// <summary>Rules, characters and world memory. Null until the director initializes (in Awake, or on first use of <see cref="Instance"/>).</summary>
         public DialogEngine Engine { get; private set; }
@@ -176,8 +185,7 @@ namespace DynamicDialog
             var set = database.RuleSet;
             activeSets[database] = set;
             Engine.Matcher.Add(set);
-            AgePending();
-            DialogSaveExtensions.ApplyRuleStates(set, pendingRuleStates, Engine.Clock.Now);
+            ApplyPending(set);
             database.Changed += OnDatabaseChanged;
         }
 
@@ -238,6 +246,7 @@ namespace DynamicDialog
                 var set = replacement.RuleSet;
                 activeSets[replacement] = set;
                 Engine.Matcher.Add(set);
+                ApplyPending(set); // a rule given a 'renamed' line picks up the state kept under its old name
                 replacement.Changed += OnDatabaseChanged;
             }
             if (logLines) Debug.Log($"[DynamicDialog] Reloaded rules from {replacement.name} ({activeSets[replacement].Rules.Count} rules).", replacement);
@@ -258,56 +267,90 @@ namespace DynamicDialog
             var fresh = database.RuleSet;
             activeSets[database] = fresh;
             Engine.Matcher.Add(fresh);
+            ApplyPending(fresh);
             if (logLines) Debug.Log($"[DynamicDialog] Reloaded rules from {database.name} ({fresh.Rules.Count} rules).", database);
         }
 
         // ---- Save / load -------------------------------------------------------------------------
 
-        /// <summary>Captures dialog memory and rule state (once/cooldown) for a save game.</summary>
+        /// <summary>
+        /// Captures dialog memory and rule state (once/cooldown) for a save game. Includes the state of
+        /// databases that aren't loaded right now, and saved states that matched no rule (so a removed or
+        /// renamed rule's state isn't lost; see <see cref="DiscardUnmatchedRuleStates"/>).
+        /// </summary>
         public DialogSaveData SaveState()
         {
             EnsureInitialized();
             var data = Engine.SaveState();
             AgePending();
-            // States for region databases that aren't loaded right now still belong in the save.
-            foreach (var p in pendingRuleStates)
-                data.rules.Add(new RuleStateSave { set = p.set, rule = p.rule, disabled = p.disabled, timesFired = p.timesFired, secondsSinceFired = p.secondsSinceFired });
+            foreach (var p in pendingRuleStates) data.rules.Add(p.Clone());
             return data;
         }
 
         /// <summary>
         /// Restores a save: replaces memory and rule state, and stops any lines and followups in progress.
-        /// Rule state for databases loaded later (e.g. by a region) is applied when they load.
+        /// Older saves are upgraded. Rule state for databases loaded later (e.g. by a region) is applied when
+        /// they load. Saved states are matched to rules by name, then by former name ("renamed" in .dlg); states
+        /// that match no rule are kept, saved again, and reported with a warning and in <see cref="LastLoadReport"/>.
         /// </summary>
         public void LoadState(DialogSaveData data)
         {
             EnsureInitialized();
             Conductor.StopAll();
             Conductor.ClearPendingFollowups();
-            pendingRuleStates = Engine.LoadState(data);
+            pendingRuleStates = Engine.LoadState(data, out var report);
             pendingAsOf = Engine.Clock.Now;
+            LastLoadReport = report;
+            if (report.HasWarnings) Debug.LogWarning("[DynamicDialog] Loading dialog save: " + report, this);
+        }
+
+        /// <summary>
+        /// Forgets saved rule states that match no rule in a loaded database (a removed rule, or one renamed
+        /// without a 'renamed' line), so later saves no longer carry them. States for databases that aren't
+        /// loaded are kept. Returns how many were discarded.
+        /// </summary>
+        public int DiscardUnmatchedRuleStates()
+        {
+            if (Engine == null) return 0;
+            return pendingRuleStates.RemoveAll(p =>
+            {
+                foreach (var set in activeSets.Values)
+                    if (string.Equals(set.Name, p.set ?? "", StringComparison.OrdinalIgnoreCase) && set.FindRule(p.rule, includeFormerNames: true) == null)
+                        return true;
+                return false;
+            });
+        }
+
+        /// <summary>Applies kept states that belong to a set that just joined the matcher, and reports any that match no rule.</summary>
+        void ApplyPending(RuleSet set)
+        {
+            AgePending();
+            var report = LastLoadReport;
+            int before = report?.UnmatchedRules.Count ?? 0;
+            DialogSaveExtensions.ApplyRuleStates(set, pendingRuleStates, Engine.Clock.Now, report);
+            if (report != null && report.UnmatchedRules.Count > before)
+            {
+                var names = new List<string>();
+                for (int i = before; i < report.UnmatchedRules.Count; i++) names.Add(report.UnmatchedRules[i].ToString());
+                Debug.LogWarning($"[DynamicDialog] Saved state for {string.Join(", ", names)} matches no rule in {set.Name}, so it wasn't applied. " +
+                                 "It is kept in later saves. If the rule was renamed, add 'renamed <old name>' to it.", this);
+            }
         }
 
         /// <summary>
         /// Remembers which rules of an unloading set have played, so leaving a region and coming back
-        /// (or saving while it's unloaded) doesn't reset its once/cooldown rules.
+        /// (or saving while it's unloaded) doesn't reset its once/cooldown rules. Kept states that match
+        /// none of its rules stay kept.
         /// </summary>
         void KeepRuleStates(RuleSet set)
         {
             AgePending();
             double now = Engine.Clock.Now;
-            pendingRuleStates.RemoveAll(p => string.Equals(p.set, set.Name, StringComparison.OrdinalIgnoreCase));
+            pendingRuleStates.RemoveAll(p => string.Equals(p.set ?? "", set.Name, StringComparison.OrdinalIgnoreCase) && set.FindRule(p.rule, includeFormerNames: true) != null);
             foreach (var r in set.Rules)
             {
-                if (r.State.TimesFired == 0 && !r.State.Disabled) continue;
-                pendingRuleStates.Add(new RuleStateSave
-                {
-                    set = set.Name,
-                    rule = r.Name,
-                    disabled = r.State.Disabled,
-                    timesFired = r.State.TimesFired,
-                    secondsSinceFired = double.IsNegativeInfinity(r.State.LastFiredTime) ? -1f : (float)Math.Max(0, now - r.State.LastFiredTime),
-                });
+                var state = DialogSaveExtensions.CaptureState(set, r, now);
+                if (state != null) pendingRuleStates.Add(state);
             }
         }
 
