@@ -1,0 +1,8 @@
+# Binary assets (sample art, sprites): never line-ending converted or text-diffed.
+# Deliberately not Git LFS: a package installed from a Git URL on a machine without git-lfs
+# would get LFS pointer files instead of models, textures and sounds.
+*.fbx binary
+*.png binary
+*.ogg binary
+*.wav binary
+*.unitypackage binary

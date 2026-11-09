@@ -1,0 +1,12 @@
+fileFormatVersion: 2
+guid: 159cb2ff2caf6ed49abf800899057200
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: 3e5cb3e0ae1721a4dbad04b5ad8ef6a9, type: 3}
+  audioFolder: 
+  searchWholeProject: 1

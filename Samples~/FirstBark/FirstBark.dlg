@@ -1,0 +1,31 @@
+# First Bark: the smallest Dynamic Dialog scene. One character (Pip), this one rule file.
+#
+# Pip's Dialog Speaker has Idle Talk switched on, so every few seconds it asks the rules
+# "what does Pip say for the TalkIdle concept?". Every rule whose conditions all pass is a
+# candidate, and the one with the most conditions wins.
+#
+# Save this file while the scene is playing and Pip uses your edits straight away.
+
+# Wins first: it is the only rule that checks a fact Pip doesn't have yet.
+rule Hello
+  concept TalkIdle
+  if barks missing
+  say "Oh! Hello there. I'm Pip."
+  remember barks = 1
+
+# The fallback: no conditions besides the concept, so anything more specific beats it.
+# With several lines, one is picked at random each time.
+rule Chatter
+  concept TalkIdle
+  say "Nice weather for standing around."
+  say "Did you know I'm made of one rule file?"
+  say "Try editing FirstBark.dlg while I talk."
+  say "Every line I say is counted in my memory."
+  remember barks += 1
+
+# Pip remembers how often they have talked (the "barks" fact) and gets tired after a while.
+rule Tired
+  concept TalkIdle
+  if barks >= 5
+  say "That's everything I know. Write me some more rules!"
+  remember barks = 1

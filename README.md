@@ -214,11 +214,26 @@ Lines in progress and pending followups aren't saved. `SaveState()` returns a `D
   rule name. The old set's states then wait, unapplied but kept, for a database with that name. So keep database asset names
   stable once a game has shipped.
 
-## Sample
+## Samples
 
-In Package Manager, select Dynamic Dialog and import **Robot Banter**. Open `RobotBanter.unity` and press Play:
-two robots wander a room and talk about what they see, remember, reply to each other, and get interrupted. Every line
-is in `RobotBanter.dlg`; edit it while playing.
+In Package Manager, select Dynamic Dialog, open the **Samples** tab, and import any of these. Open the sample's scene
+and press Play. Each sample has a README, and every line is in the sample's `.dlg` file, which you can edit while playing.
+
+| Sample | What it shows | Size |
+|---|---|---|
+| **First Bark** | The smallest scene: one character, one rule file and a speech bubble. Start here. | 22 KB |
+| **Robot Banter** | Two robots wander a room and talk about what they see: specific rules beating general ones, memory, conversations, replies from whoever is in earshot, idle chatter, and interruptions. Uses the debug overlays. | 14 KB |
+| **Courtyard Quests** | A playable clinic courtyard: five characters, three fetch quests and pigeons. Talking, seeing, areas, pick-ups, facts from code, game events (`do`), fact-change notifications, characters reacting to each other, and speech bubbles. Kenney CC0 art. | 4.9 MB |
+| **Dialog UI** | The speech bubbles and subtitle bar side by side, a restyled bubble (a prefab variant), and a custom presenter (a chat log) built on `IDialogPresenter`. | 69 KB |
+
+All samples work with any render pipeline: scenery is made from primitives at Play time with the pipeline's default
+material. Courtyard Quests and Dialog UI read input from the Input System package when it's installed, and from the
+old Input Manager otherwise. First Bark, Courtyard Quests and Dialog UI need uGUI and TextMeshPro, which new projects
+include. If TextMeshPro's Essential Resources aren't in the project yet, importing a sample adds them.
+
+The Kenney art in Courtyard Quests (Mini Characters, Input Prompts, Interface Sounds) is released under Creative
+Commons Zero (CC0). Each pack's `License.txt` is in the sample's `Art/Kenney` folder, and only the files the sample
+uses are included.
 
 ## Debugging
 
