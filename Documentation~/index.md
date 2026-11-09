@@ -64,5 +64,5 @@ The package has four samples. Import them from Package Manager (select Dynamic D
 ## Credit
 
 Dynamic Dialog is inspired by Elan Ruskin's GDC 2012 talk *"Rule Databases for Contextual Dialog and Game Logic"*,
-which describes the system Valve used for character dialog in *Left 4 Dead* and later games. The talk is well worth
-watching. This package is an independent implementation; it uses no material from the talk.
+which describes the rule-based dialog system behind Valve's *Left 4 Dead* games. The talk is well worth watching.
+This package is an independent implementation and uses no material from the talk.
