@@ -6,3 +6,6 @@
 *.ogg binary
 *.wav binary
 *.unitypackage binary
+
+# Shell scripts run on Linux CI runners and in Git Bash: keep LF line endings.
+*.sh text eol=lf
