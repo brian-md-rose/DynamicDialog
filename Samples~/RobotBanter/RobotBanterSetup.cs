@@ -104,7 +104,13 @@ namespace DynamicDialog.Samples
                 cam.transform.position = new Vector3(0f, 11f, -11f);
                 cam.transform.LookAt(Vector3.zero);
             }
-            if (Object.FindAnyObjectByType<Light>() == null)
+#if UNITY_2023_1_OR_NEWER
+            var existingLight = Object.FindAnyObjectByType<Light>();
+#else
+            // FindAnyObjectByType only exists from 2021.3.18; FindObjectOfType works on every 2021.3 release.
+            var existingLight = Object.FindObjectOfType<Light>();
+#endif
+            if (existingLight == null)
             {
                 var light = new GameObject("Light", typeof(Light)).GetComponent<Light>();
                 light.type = LightType.Directional;

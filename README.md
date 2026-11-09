@@ -34,8 +34,9 @@ The manual is in [`Documentation~`](Documentation~/index.md):
 
 ## Install
 
-In Unity 2021.3 or later, open Package Manager, choose **Add package from disk…**, and select this folder's
-`package.json` (or use **Add package from git URL…**). Then follow [Getting started](Documentation~/getting-started.md),
+In Unity 2021.3 or later, install Dynamic Dialog from the Asset Store through Package Manager (**My Assets**). Or choose
+**Add package from disk…** and select this folder's `package.json`, or **Add package from git URL…** if you have access
+to the repository. Then follow [Getting started](Documentation~/getting-started.md),
 which takes about ten minutes.
 
 ## A taste
@@ -124,6 +125,35 @@ dotnet run -c Release --project "Tests~/DotNet/Bench"
 - **Player builds and code stripping:** the package uses no reflection at runtime, so it needs no `link.xml`, even with
   Managed Stripping Level set to High. A Windows Mono player with High stripping was run, and an Android IL2CPP player
   was built, for 1.0.
+
+## Versioning and support
+
+**Semantic versioning.** From 1.0.0, version numbers follow [Semantic Versioning](https://semver.org):
+
+- **Patch** releases (1.0.x) fix bugs. They don't change the public API, the `.dlg` and spreadsheet formats, or the save format.
+- **Minor** releases (1.x.0) add features. Existing code, rule files and saves keep working. A member may be marked
+  `[Obsolete]` in a minor release, with a message naming its replacement, but it keeps working until the next major release.
+- **Major** releases (2.0.0) may break things. Every break is listed in the [changelog](CHANGELOG.md) with a migration note,
+  and saves from earlier versions keep loading (`DialogSaveData.Upgrade()` migrates them).
+
+The public API is every public type and member in the runtime assemblies (`DynamicDialog.Core`, `DynamicDialog`, and the
+optional `DynamicDialog.Presentation`, `DynamicDialog.Addressables` and `DynamicDialog.Localization`), plus the editor
+entry points the manual documents. Anything `internal`, and anything in the samples, may change in any release.
+
+**Supported Unity versions.** Unity 2021.3 LTS through Unity 6 (6000.x). Each release is tested on the oldest and newest
+of these (1.0.0: 2021.3.45f2 and 6000.5.5f1). Support for a Unity version is only dropped in a major release, and new
+Unity versions are added in minor or patch releases. Tech-stream (non-LTS) releases in between should work but aren't tested.
+
+**Reporting bugs.** Use the support contact on the package's Asset Store page. Please include the package version
+(Package Manager shows it), your Unity version, the console error with its stack trace, and, if you can, the rule file
+or a small scene that shows the problem. The Debugger's **Lookups** tab often shows exactly why a line did or didn't
+play; a screenshot of it helps. Check [FAQ and troubleshooting](Documentation~/faq.md) first.
+
+## License
+
+Dynamic Dialog is sold under the [Unity Asset Store EULA](https://unity.com/legal/as-terms); see [LICENSE.md](LICENSE.md).
+It is not open source. The Courtyard Quests sample includes Kenney art released under CC0; see
+[Third Party Notices.md](Third%20Party%20Notices.md).
 
 ## Tests
 
