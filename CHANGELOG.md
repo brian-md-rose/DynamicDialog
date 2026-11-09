@@ -1,7 +1,20 @@
 # Changelog
 
-## [Unreleased]
+All notable changes to Dynamic Dialog are listed here. From 1.0.0 the package follows
+[Semantic Versioning](https://semver.org); the README's *Versioning and support* section explains what that promises.
+
+## [1.0.0] - 2026-11-09
+First stable release. The public API, the `.dlg` and spreadsheet formats, and the save format are now covered by
+semantic versioning. Upgrading from 0.6: see **Breaking changes and migration** at the end of this section, and
+[Upgrading from 0.x](Documentation~/upgrading.md).
+
 ### Added
+#### Release
+- `LICENSE.md`: Dynamic Dialog is sold under the Unity Asset Store EULA.
+- `Third Party Notices.md`: the Kenney CC0 packs in Courtyard Quests, and what the package uses without shipping it.
+- A versioning and support policy in the README: semantic versioning, the supported Unity versions, and how to report bugs.
+- `package.json`: version 1.0.0, `documentationUrl`, `changelogUrl`, `licensesUrl`, more keywords, and all four samples.
+
 - Rule Editor window (**Window > Dynamic Dialog > Rule Editor**) for `.dlg` files, moved in from the ProjectConverse test project: searchable name pickers backed by a `DialogStringTable` asset, live problem checking, links between rules (followup answers, rules that set or check a fact), drag to reorder, group by speaker, copy and paste as `.dlg` text, undo, and a text preview.
 - Editor tests that round-trip `.dlg` files (including every `.dlg` in the project and the samples) through the Rule Editor's document model and check the rules don't change.
 - XML doc comments on every public type and member. The `Tests~/DotNet` Core and Unity builds now generate documentation and fail on any undocumented public member.
@@ -137,6 +150,8 @@
 ### Changed (samples)
 - Robot Banter no longer uses `FindObjectsByType(FindObjectsSortMode)`, which is deprecated in Unity 6.5 and showed two
   compiler warnings on import.
+- Robot Banter uses `FindObjectOfType` before Unity 2023.1, because `FindAnyObjectByType` only exists from 2021.3.18 and
+  the package supports every 2021.3 release.
 
 ### Changed (compatibility and performance)
 - **Less garbage per lookup.** A lookup through the components (the director's `map` and `speakers_talking` facts, and
