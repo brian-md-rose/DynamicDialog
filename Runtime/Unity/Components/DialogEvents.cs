@@ -99,10 +99,6 @@ namespace DynamicDialog
 
         internal static void OnConductorEvent(DialogLine line, DialogEvent e) => Raise(line?.Speaker as DialogSpeaker, e, line);
 
-        // Static state survives entering Play Mode when domain reload is off.
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => Clear();
-
         sealed class Subscription : IDisposable
         {
             string name;

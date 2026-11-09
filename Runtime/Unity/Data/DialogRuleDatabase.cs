@@ -34,9 +34,31 @@ namespace DynamicDialog
         public bool IsImported => !string.IsNullOrEmpty(sourceAssetPath);
 
         [NonSerialized] RuleSet compiled;
+        [NonSerialized] int compiledSession;
 
-        /// <summary>The compiled rule set, built on first use and cached until the asset changes.</summary>
-        public RuleSet RuleSet => compiled ?? (compiled = Compile());
+        /// <summary>
+        /// The compiled rule set, built on first use and cached until the asset changes, or until Play Mode
+        /// starts again. That way <c>once</c> and cooldown state never carries over from an earlier Play Mode
+        /// session, even when Enter Play Mode Options skip the domain reload.
+        /// </summary>
+        public RuleSet RuleSet
+        {
+            get
+            {
+                if (compiled != null && compiledSession != DialogStaticState.PlaySession)
+                {
+                    // Built in an earlier Play Mode session (or in Edit Mode), and kept because the domain wasn't reloaded.
+                    compiled = null;
+                    foreach (var r in rules) r?.response?.ResetSelection();
+                }
+                if (compiled == null)
+                {
+                    compiled = Compile();
+                    compiledSession = DialogStaticState.PlaySession;
+                }
+                return compiled;
+            }
+        }
 
         /// <summary>Builds a new rule set from the current rules, without caching it. Rules that fail to compile are logged and skipped.</summary>
         public RuleSet Compile()

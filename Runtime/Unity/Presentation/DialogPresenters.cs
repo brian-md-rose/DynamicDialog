@@ -89,8 +89,7 @@ namespace DynamicDialog
             }
         }
 
-        /// <summary>Clears everything, for Play Mode without a domain reload and for tests.</summary>
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        /// <summary>Clears everything, for Play Mode without a domain reload (see <see cref="DialogStaticState"/>) and for tests.</summary>
         internal static void Reset()
         {
             presenters.Clear();

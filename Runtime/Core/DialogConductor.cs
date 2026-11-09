@@ -122,6 +122,8 @@ namespace DynamicDialog
         public int PendingFollowupCount => pending.Count;
         /// <summary>Lines playing now.</summary>
         public IEnumerable<DialogLine> ActiveLines => active.Values;
+        /// <summary>How many lines are playing now. Unlike counting <see cref="ActiveLines"/>, this allocates nothing.</summary>
+        public int ActiveLineCount => active.Count;
 
         /// <summary>Adds a speaker, so followups can reach it. Registering twice has no effect.</summary>
         public void Register(IDialogSpeaker speaker)

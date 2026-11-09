@@ -245,17 +245,45 @@ the scale the talk describes:
 |---|---|---|
 | `RuleMatcher.FindBest` | 0.84 µs | 0 B |
 | `DialogEngine.Ask` (build a ~40-fact query from memory and providers, then match) | 0.71 µs | 0 B |
-| The same with lookup recording on | 2.1 µs | about 7 KB |
+| The same with lookup recording on | 2.7 µs | about 2.5 KB (7.4 KB before 1.0) |
 | One 10,000-rule bucket (no partitioning, for comparison) | 45 µs | 0 B |
 | `RuleMatcher.FindBest` inside the Unity 6.5 editor (Mono, editor code optimization) | 4.0 µs | 0 B |
 
+**Garbage per lookup in Unity,** through the real components: a Dialog Director with its built-in `map` and
+`speakers_talking` facts, and three speakers with Static Facts and Nearby Speaker Facts (Unity 6000.5 editor, Play Mode):
+
+| Lookup | 0.6 | 1.0 |
+|---|---|---|
+| `speaker.Speak(concept)` with no matching rule (an idle poll) | 200 B | 0 B |
+| `DialogEngine.Ask` with a match | 200 B | 0 B |
+| The same with lookup recording on (editor and development builds) | 4.2 KB | 1.5 KB |
+
+The 0.6 garbage came from reading the scene name and from enumerating lines and speakers through interfaces, on every query.
+Lookup recording still allocates what each record keeps: a copy of the query, where each fact came from, and the rules tested.
+Release builds don't record. A line that actually plays allocates its `DialogLine` and whatever your presenters do.
+
 The matcher loads each query into a table indexed by symbol, so each condition costs one array read.
-The Play Mode tests check for zero garbage under Unity's own runtime and log the time per lookup.
-To rerun the numbers:
+The Play Mode tests check for zero garbage under Unity's own runtime, both in the core and through the components, and
+`AllocationMeasureTests` logs the numbers above. To rerun the .NET numbers:
 
 ```bash
 dotnet run -c Release --project "Tests~/DotNet/Bench"
 ```
+
+## Compatibility
+
+- **Unity versions:** 2021.3 LTS through Unity 6 (6000.x). 1.0 was tested on 2021.3.45f2 and 6000.5.5f1.
+- **Optional packages:** Addressables (Dialog Addressable Region), Localization (Unity Localization Localizer), and uGUI with
+  TextMeshPro (speech bubbles and subtitle bar) each live in their own assembly, which only compiles when its packages are
+  installed. Without them the rest of the package compiles and works, with no errors or warnings.
+- **Enter Play Mode Options:** works with *Reload Domain* off. Each time Play Mode starts, the package clears its static state
+  (the director instance, `DialogSpeaker.AnyLineStarted`/`AnyLineEnded` subscribers, `DialogEvents` handlers and registered
+  presenters), and rule databases start over with fresh `once`, cooldown and variation state. Your own static subscriptions
+  to those events are cleared too, so subscribe in `OnEnable` or `Start`, not in a static constructor.
+  `DialogDirector.Initialized` is kept, for editor tools.
+- **Player builds and code stripping:** the package uses no reflection at runtime, so it needs no `link.xml`, even with
+  Managed Stripping Level set to High. A Windows Mono player with High stripping was run, and an Android IL2CPP player
+  was built, for 1.0.
 
 ## Core API
 

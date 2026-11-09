@@ -27,6 +27,9 @@ namespace DynamicDialog
         /// <summary>Where speakers look at: <see cref="focus"/>, or this transform.</summary>
         public Vector3 FocusPosition => focus != null ? focus.position : transform.position;
 
+        // Play Mode without a domain reload: drop tags left over from the previous session.
+        internal static void ResetStatics() => all.Clear();
+
         void OnEnable() => all.Add(this);
         void OnDisable() => all.Remove(this);
     }
