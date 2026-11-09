@@ -126,12 +126,14 @@ namespace DynamicDialog
         /// <param name="query">The facts to match against.</param>
         /// <param name="now">Game time, for once and cooldown checks.</param>
         /// <param name="trace">If not null, filled with every rule tested and the winner.</param>
-        public Rule FindBest(Query query, double now, MatchTrace trace = null)
+        public Rule FindBest(Query query, double now, MatchTrace trace = null) => FindBestCore(query, now, trace, copyQuery: true);
+
+        internal Rule FindBestCore(Query query, double now, MatchTrace trace, bool copyQuery)
         {
             if (trace != null)
             {
                 trace.Clear();
-                trace.Query = query.Clone();
+                if (copyQuery) trace.Query = query.Clone();
             }
 
             ties.Clear();

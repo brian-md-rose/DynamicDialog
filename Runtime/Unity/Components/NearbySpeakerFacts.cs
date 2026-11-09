@@ -20,6 +20,9 @@ namespace DynamicDialog
 
         DialogSpeaker self;
 
+        // Play Mode without a domain reload: start the cache over.
+        internal static void ResetStatics() => nearKeys.Clear();
+
         void Awake() => self = GetComponent<DialogSpeaker>();
 
         /// <inheritdoc/>
@@ -28,8 +31,11 @@ namespace DynamicDialog
             var director = self.Director;
             if (director == null) return;
             int count = 0;
-            foreach (var other in director.Conductor.Speakers)
+            // Indexed, not foreach: Speakers is an IReadOnlyList, whose enumerator would be boxed on every query.
+            var speakers = director.Conductor.Speakers;
+            for (int i = 0; i < speakers.Count; i++)
             {
+                var other = speakers[i];
                 if (ReferenceEquals(other, self) || !self.CanHear(other)) continue;
                 count++;
                 query.Set(NearKey(other.Character.Who), 1f);

@@ -76,6 +76,33 @@ namespace DynamicDialog.Tests
         }
 
         [Test]
+        public void RecordsDontShareTestedRules_AndACallersTraceStillGetsItsQuery()
+        {
+            Load(
+                new RuleBuilder("talk").Concept("Talk").Build(),
+                new RuleBuilder("hurtLow").Concept("Hurt").Where(Criterion.Lt("health", 50)).Build(),
+                new RuleBuilder("hurtAny").Concept("Hurt").Build());
+            nick.Providers.Add(new HealthProvider { Health = 20 });
+
+            engine.Ask(nick, "Hurt");
+            engine.Ask(nick, "Talk");
+            var hurt = engine.Recorder.Records[0];
+            var talk = engine.Recorder.Records[1];
+            CollectionAssert.AreEqual(new[] { "hurtLow" }, hurt.Tested.Select(e => e.Rule.Name), "the reused trace didn't overwrite the first record");
+            CollectionAssert.AreEqual(new[] { "talk" }, talk.Tested.Select(e => e.Rule.Name));
+            Assert.AreEqual("HealthProvider", hurt.SourceOf(Symbol.Of("health")));
+            Assert.AreNotSame(hurt.FactSources, talk.FactSources);
+
+            var trace = new MatchTrace();
+            engine.Trace = trace;
+            engine.Ask(nick, "Hurt");
+            Assert.IsNotNull(trace.Query, "a trace set by the caller still gets a copy of the query");
+            Assert.AreEqual("hurtLow", trace.Winner.Name);
+            Assert.AreEqual(1, trace.Entries.Count);
+            Assert.AreEqual(1, engine.Recorder.Records.Last().Tested.Count);
+        }
+
+        [Test]
         public void SameQueryWithAndWithoutRecording_PicksTheSameRules()
         {
             Load(

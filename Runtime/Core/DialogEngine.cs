@@ -82,6 +82,13 @@ namespace DynamicDialog
         readonly IRandomSource random;
         readonly Query scratch = new Query(128);
         readonly Query stage = new Query(64);
+        // Lookup recording: a reused trace (the recorder copies what it keeps) and cached source labels,
+        // so recording only allocates what the record itself holds on to.
+        readonly MatchTrace recordTrace = new MatchTrace();
+        readonly Dictionary<Type, string> worldProviderLabels = new Dictionary<Type, string>();
+        readonly Dictionary<Type, string> providerLabels = new Dictionary<Type, string>();
+        readonly Dictionary<Symbol, string> memoryLabels = new Dictionary<Symbol, string>();
+        int lastSourceCount = 16;
 
         /// <summary>Game time, for expiry, cooldowns and lookups.</summary>
         public readonly IClock Clock;
@@ -223,14 +230,16 @@ namespace DynamicDialog
                 foreach (var p in WorldProviders)
                 {
                     p.AddFacts(stage);
-                    Merge(query, "world: " + p.GetType().Name, sources);
+                    Merge(query, Label(worldProviderLabels, p.GetType(), "world: "), sources);
                 }
                 speaker.Memory.WriteTo(stage, now);
-                Merge(query, speaker.Who.Name + " memory", sources);
+                if (!memoryLabels.TryGetValue(speaker.Who, out var memoryLabel))
+                    memoryLabels[speaker.Who] = memoryLabel = speaker.Who.Name + " memory";
+                Merge(query, memoryLabel, sources);
                 foreach (var p in speaker.Providers)
                 {
                     p.AddFacts(stage);
-                    Merge(query, p.GetType().Name, sources);
+                    Merge(query, Label(providerLabels, p.GetType(), ""), sources);
                 }
                 eventFacts?.Invoke(stage);
                 Merge(query, "event", sources);
@@ -241,6 +250,12 @@ namespace DynamicDialog
             query.Set(WellKnownFacts.Concept, concept);
             query.Set(WellKnownFacts.Who, speaker.Who);
             query.Set(WellKnownFacts.Random, random.NextFloat() * 100f);
+        }
+
+        static string Label(Dictionary<Type, string> cache, Type type, string prefix)
+        {
+            if (!cache.TryGetValue(type, out var label)) cache[type] = label = prefix + type.Name;
+            return label;
         }
 
         void Merge(Query query, string label, Dictionary<Symbol, string> sources)
@@ -266,11 +281,15 @@ namespace DynamicDialog
                 return new MatchResult(Matcher.FindBest(scratch, Clock.Now, Trace), speaker);
             }
 
-            var sources = new Dictionary<Symbol, string>();
+            // The record keeps the dictionary; sized from the last lookup so it doesn't grow in steps.
+            var sources = new Dictionary<Symbol, string>(lastSourceCount);
             BuildQuery(scratch, speaker, concept, eventFacts, sources);
-            var trace = Trace ?? new MatchTrace();
-            var rule = Matcher.FindBest(scratch, Clock.Now, trace);
+            lastSourceCount = Math.Max(16, sources.Count);
+            var trace = Trace ?? recordTrace;
+            // A caller's Trace gets its own copy of the query; the reused one doesn't need it, as the recorder copies it.
+            var rule = Matcher.FindBestCore(scratch, Clock.Now, trace, copyQuery: Trace != null);
             Recorder.Add(Clock.Now, speaker.Who, concept, scratch, sources, trace, rule);
+            if (trace == recordTrace) recordTrace.Clear();
             return new MatchResult(rule, speaker);
         }
 

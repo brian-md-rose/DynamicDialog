@@ -77,6 +77,8 @@ namespace DynamicDialog
         // kept and saved again rather than dropped.
         List<RuleStateSave> pendingRuleStates = new List<RuleStateSave>();
         double pendingAsOf;
+        Scene mapScene;
+        Symbol mapSymbol;
 
         /// <summary>
         /// What happened in the most recent <see cref="LoadState"/>: the save's version, rule states applied
@@ -121,6 +123,10 @@ namespace DynamicDialog
                 return instance;
             }
         }
+
+        // Play Mode without a domain reload: forget the previous session's director.
+        // Initialized is left alone: it is meant for editor tools, which subscribe once and outlive Play Mode.
+        internal static void ResetStatics() => instance = null;
 
         void Awake()
         {
@@ -375,10 +381,15 @@ namespace DynamicDialog
 
         void IFactProvider.AddFacts(Query query)
         {
-            query.Set(WellKnownFacts.Map, Symbol.Of(SceneManager.GetActiveScene().name));
-            int talking = 0;
-            foreach (var _ in Conductor.ActiveLines) talking++;
-            query.Set(WellKnownFacts.SpeakersTalking, talking);
+            // Scene.name builds a new string on every call, so the symbol is cached per scene.
+            var scene = SceneManager.GetActiveScene();
+            if (scene != mapScene || mapSymbol.IsNone)
+            {
+                mapScene = scene;
+                mapSymbol = Symbol.Of(scene.name);
+            }
+            query.Set(WellKnownFacts.Map, mapSymbol);
+            query.Set(WellKnownFacts.SpeakersTalking, Conductor.ActiveLineCount);
         }
 
         // ---- Logging ------------------------------------------------------------------------

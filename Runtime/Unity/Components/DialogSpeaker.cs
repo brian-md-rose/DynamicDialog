@@ -90,6 +90,13 @@ namespace DynamicDialog
             remove => AnyLineEnded -= value;
         }
 
+        // Play Mode without a domain reload: drop the previous session's subscribers.
+        internal static void ResetStatics()
+        {
+            AnyLineStarted = null;
+            AnyLineEnded = null;
+        }
+
         readonly List<IFactProvider> providers = new List<IFactProvider>();
         readonly List<IDialogLineHandler> handlers = new List<IDialogLineHandler>();
 

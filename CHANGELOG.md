@@ -70,6 +70,36 @@
 - Tests: loading a 0.6 save (as data and as 0.6 JSON), saves without a version and from a newer version, renamed and removed
   rules, region databases loaded after the save, and `renamed` in `.dlg`, spreadsheets, the validator and the Rule Editor.
 
+#### Compatibility and robustness
+- **Play Mode without a domain reload** (Enter Play Mode Options with *Reload Domain* off) now works. When Play Mode starts,
+  the package clears the previous session's static state: `DialogDirector.Instance`, `DialogSpeaker.AnyLineStarted` and
+  `AnyLineEnded` subscribers, `DialogEvents` handlers, registered presenters, the `DialogTag.All` list and the `near_<who>` key
+  cache. Rule databases rebuild their compiled rule set in each new session, so `once`, cooldown and variation-order state
+  never carries over from the last time you pressed Play. `DialogDirector.Initialized` is deliberately kept, since editor
+  tools subscribe to it once and outlive Play Mode.
+- `DialogConductor.ActiveLineCount`: how many lines are playing, without allocating.
+- Tests: an Edit Mode test that enters Play Mode twice with domain reload off, Play Mode tests for the reset itself, and
+  allocation tests that go through the real components (director built-in facts, Static Facts, Nearby Speaker Facts).
+  `AllocationMeasureTests` logs garbage per lookup using the profiler's "GC Allocated In Frame" counter.
+- Checked for 1.0:
+  - Unity 2021.3.45f2 and 6000.5.5f1, with no optional packages (no errors or warnings, and the optional assemblies are
+    skipped), and with all of them (Addressables, Localization, uGUI and TextMeshPro).
+  - A Windows player (Mono) with Managed Stripping Level High runs a smoke scene: a conversation with a followup, `do`
+    events in code and in a Dialog Event Listener's UnityEvent, both presenters, and save/load. The package uses no
+    reflection at runtime and needs no `link.xml`.
+  - An Android IL2CPP player with High stripping builds, and the Play Mode reset survives stripping.
+
+### Changed (compatibility and performance)
+- **Less garbage per lookup.** A lookup through the components (the director's `map` and `speakers_talking` facts, and
+  Nearby Speaker Facts) allocated on every query: the scene name string, and boxed enumerators. It now allocates nothing.
+  In the Unity 6.5 editor that was 200 B per lookup with three speakers. With lookup recording on (the default in the
+  editor and development builds), a lookup allocates less than half as much (in .NET, 7.4 KB down to 2.5 KB; in the Unity
+  test above, 4.2 KB down to 1.5 KB): the matcher trace is reused, source labels are cached, and the query is copied once
+  instead of twice.
+- `DialogRuleDatabase.RuleSet` returns a freshly compiled set the first time it is read in each Play Mode session.
+  With domain reload on (Unity's default), nothing changes. With it off, code that kept a `RuleSet` from an earlier session
+  holds a stale copy. *Migration:* read `database.RuleSet` again rather than caching it across sessions.
+
 ### Changed (save data)
 - 0.6 saves load unchanged; nothing needs migrating. Saves written now (version 2) have the same fields, so 0.6 can still read them.
 - `DialogSaveExtensions.LoadState` upgrades the `DialogSaveData` you pass in place: it sets `version`, replaces missing lists,
