@@ -144,3 +144,16 @@ That catches any API Unity doesn't provide. `Tests~/DotNet/Unity` compile-checks
 (set `-p:UnityManaged=...` if yours isn't 6000.5.5f1). `Tests~/DotNet/Presentation` does the same for `Runtime/Presentation`;
 uGUI and TextMeshPro are packages, so it also needs a Unity project's compiled `Library/ScriptAssemblies`
 (`-p:UnityScriptAssemblies=...`). Unity ignores folders whose names end in `~`.
+
+### Continuous integration
+
+GitHub Actions (`.github/workflows`) runs on every pull request and push to `main`:
+
+- **.NET tests**: the `netstandard2.1` core build and `dotnet test`. Needs no Unity license.
+- **Unity tests** (GameCI): Edit Mode and Play Mode tests on Unity 2021.3.45f2 and 6000.5.5f1, each with all optional
+  packages installed (uGUI and TextMeshPro, Addressables, Localization) and with none. They need Unity license secrets,
+  and are skipped with a warning until those are set.
+- A **player build smoke test** (First Bark, Linux IL2CPP) runs when started by hand.
+
+Test results are uploaded as artifacts. `CI~/README.md` explains the generated host project and how to set the
+license secrets.

@@ -1,0 +1,102 @@
+# Player build smoke test, run by hand (Actions > Unity build smoke test > Run workflow) to save license minutes.
+# Builds the First Bark sample as a Linux IL2CPP player, then runs it headless for a few seconds and fails on
+# any exception in its log. Needs the same Unity license secrets as the CI workflow (see CI~/README.md).
+name: Unity build smoke test
+
+on:
+  workflow_dispatch:
+    inputs:
+      unity:
+        description: Unity version
+        type: choice
+        options: [6000.5.5f1, 2021.3.45f2]
+        default: 6000.5.5f1
+      backend:
+        description: Scripting backend
+        type: choice
+        options: [IL2CPP, Mono]
+        default: IL2CPP
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: First Bark, Linux ${{ inputs.backend }}, Unity ${{ inputs.unity }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check the Unity license secrets
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          if [ -z "$UNITY_EMAIL" ] || [ -z "$UNITY_PASSWORD" ] || { [ -z "$UNITY_LICENSE" ] && [ -z "$UNITY_SERIAL" ]; }; then
+            echo "::error title=Unity license secrets missing::Set UNITY_EMAIL and UNITY_PASSWORD, plus UNITY_LICENSE (Personal) or UNITY_SERIAL (Plus/Pro). See CI~/README.md."
+            exit 1
+          fi
+
+      # The package goes in package/, and the host project next to it in HostProject/: the project must not be
+      # inside the package folder (see CI~/make-host-project.sh).
+      - uses: actions/checkout@v4
+        with:
+          path: package
+
+      - name: Generate the host project with First Bark
+        run: bash "package/CI~/make-host-project.sh" "${{ inputs.unity }}" full --first-bark HostProject
+
+      - name: Cache Library
+        uses: actions/cache@v4
+        with:
+          path: HostProject/Library
+          key: Library-build-${{ inputs.unity }}-${{ hashFiles('HostProject/Packages/manifest.json', 'package/package.json', 'package/Runtime/**', 'package/Editor/**', 'package/Samples~/FirstBark/**') }}
+          restore-keys: |
+            Library-build-${{ inputs.unity }}-
+
+      - name: Build
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: ${{ inputs.unity }}
+          projectPath: HostProject
+          targetPlatform: StandaloneLinux64
+          buildName: FirstBark
+          buildsPath: build
+          buildMethod: DynamicDialogCiBuild.BuildFirstBark
+          customParameters: -scriptingBackend ${{ inputs.backend }}
+          versioning: None
+          # The workspace root holds package/ and HostProject/ and isn't a git checkout itself.
+          allowDirtyBuild: true
+
+      - name: Run the player headless
+        run: |
+          sudo chown -R "$(id -u):$(id -g)" build
+          player=build/StandaloneLinux64/FirstBark
+          chmod +x "$player"
+          # The sample keeps running, so `timeout` ending it (exit 124) is the expected outcome.
+          set +e
+          timeout 20s "$player" -batchmode -nographics -logFile "$PWD/player.log"
+          code=$?
+          set -e
+          echo "Player exit code: $code"
+          if [ "$code" != 124 ] && [ "$code" != 0 ]; then echo "::error::The player exited with code $code"; exit 1; fi
+          if grep -nE "Exception|Dynamic Dialog: .*(error|failed)" player.log; then
+            echo "::error::The player logged an exception (see player.log)"; exit 1
+          fi
+          grep -n "Dynamic Dialog" player.log || true
+
+      - name: Upload the player and its log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: first-bark-linux-${{ inputs.backend }}-${{ inputs.unity }}
+          path: |
+            build
+            player.log
+          if-no-files-found: ignore
