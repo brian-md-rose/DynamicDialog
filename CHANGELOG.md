@@ -107,6 +107,17 @@
 - Checked: each sample imported through Package Manager into new Unity 6.5 projects (Built-in with the Input Manager,
   and URP with the Input System only), plus First Bark in Unity 2021.3, and played with no console errors.
 
+#### Documentation
+- **A manual in `Documentation~/`**: getting started (about ten minutes, ending with First Bark), concepts, the `.dlg`
+  language reference (every statement, including `do`, `at end` and `renamed`), spreadsheets and the inspector, the Rule
+  Editor, a component reference, scripting, the Debugger and Rule Validator, hot reload, presenters (restyling and
+  writing your own `IDialogPresenter`), localization, saving and loading, regions, upgrading from 0.x, and FAQ and
+  troubleshooting.
+- `DocumentationTests` keeps the manual accurate: every `.dlg` and spreadsheet example in the manual and README must parse
+  without errors or warnings, and every C# example must match code in a `DocumentationSnippets.cs` file under `Tests/`,
+  which the test assemblies compile (the core examples also run).
+- The README is shorter and points into the manual. It credits Elan Ruskin's GDC 2012 talk as the inspiration.
+
 ### Changed (samples)
 - Robot Banter no longer uses `FindObjectsByType(FindObjectsSortMode)`, which is deprecated in Unity 6.5 and showed two
   compiler warnings on import.
