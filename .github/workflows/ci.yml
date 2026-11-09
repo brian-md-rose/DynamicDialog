@@ -1,0 +1,142 @@
+# Tests for every pull request and every push to main.
+#  - dotnet:      the core tests (Tests/Editor) with `dotnet test`. No Unity, no license, always runs.
+#  - workflow-lint: actionlint and shellcheck over these workflows.
+#  - unity-tests: Edit Mode and Play Mode tests in Unity 2021.3 LTS and Unity 6, with and without the optional
+#                 packages (uGUI/TextMeshPro, Addressables, Localization). Needs Unity license secrets; without them
+#                 the job is skipped with a warning (see CI~/README.md for the secrets to set).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  dotnet:
+    name: .NET tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Build Runtime/Core (netstandard2.1, warnings as errors)
+        run: dotnet build "Tests~/DotNet/Core" --configuration Release
+
+      - name: Run the core tests
+        run: >
+          dotnet test "Tests~/DotNet/Tests" --configuration Release
+          --logger "trx;LogFileName=dotnet-tests.trx"
+          --logger "console;verbosity=normal"
+          --results-directory test-results
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-test-results
+          path: test-results
+          if-no-files-found: ignore
+
+  workflow-lint:
+    name: Lint workflows
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: actionlint (also runs shellcheck on run scripts)
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color
+      - name: Check the CI scripts parse
+        run: for f in CI~/*.sh; do bash -n "$f"; done
+
+  unity-license:
+    name: Unity license check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      available: ${{ steps.check.outputs.available }}
+    steps:
+      - id: check
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        run: |
+          if [ -n "$UNITY_EMAIL" ] && [ -n "$UNITY_PASSWORD" ] && { [ -n "$UNITY_LICENSE" ] || [ -n "$UNITY_SERIAL" ]; }; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "Unity license secrets are set." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            msg="Unity tests skipped: set the UNITY_EMAIL and UNITY_PASSWORD secrets, plus UNITY_LICENSE (Personal) or UNITY_SERIAL (Plus/Pro). See CI~/README.md."
+            echo "::warning title=Unity tests skipped::$msg"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  unity-tests:
+    name: Unity ${{ matrix.unity }} (${{ matrix.packages }})
+    needs: unity-license
+    if: needs.unity-license.outputs.available == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      checks: write
+    strategy:
+      fail-fast: false
+      matrix:
+        unity: [2021.3.45f2, 6000.5.5f1]
+        packages: [full, minimal]
+    steps:
+      # The package goes in package/, and the host project next to it in HostProject/: the project must not be
+      # inside the package folder (see CI~/make-host-project.sh).
+      - uses: actions/checkout@v4
+        with:
+          path: package
+
+      - name: Generate the host project
+        run: bash "package/CI~/make-host-project.sh" "${{ matrix.unity }}" "${{ matrix.packages }}" HostProject
+
+      - name: Cache Library
+        uses: actions/cache@v4
+        with:
+          path: HostProject/Library
+          key: Library-${{ matrix.unity }}-${{ matrix.packages }}-${{ hashFiles('HostProject/Packages/manifest.json', 'package/package.json', 'package/Runtime/**', 'package/Editor/**', 'package/Tests/**') }}
+          restore-keys: |
+            Library-${{ matrix.unity }}-${{ matrix.packages }}-
+
+      - name: Run Edit Mode and Play Mode tests
+        uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: ${{ matrix.unity }}
+          projectPath: HostProject
+          testMode: all
+          artifactsPath: test-results
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          checkName: Unity ${{ matrix.unity }} (${{ matrix.packages }}) test results
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unity-test-results-${{ matrix.unity }}-${{ matrix.packages }}
+          path: test-results
+          if-no-files-found: ignore

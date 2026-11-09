@@ -93,6 +93,9 @@ namespace DynamicDialog.Presentation.Tests
             for (int i = 0; i < n; i++) yield return null;
         }
 
+        // These tests never wait on WaitForEndOfFrame: it doesn't fire in -batchmode (CI), so a test waiting on it hangs.
+        // A coroutine resumed by `yield return null` runs after Update and before LateUpdate, so the presenter state it
+        // reads is what the previous frame's LateUpdate left.
         static IEnumerator WaitUntil(System.Func<bool> condition, float timeoutSeconds = 3f)
         {
             float end = Time.realtimeSinceStartup + timeoutSeconds;
@@ -168,7 +171,7 @@ namespace DynamicDialog.Presentation.Tests
             var a = bubbles.BubbleFor(rosa);
             var b = bubbles.BubbleFor(ike);
             yield return WaitUntil(() => a.Alpha >= 1f && b.Alpha >= 1f);
-            yield return new WaitForEndOfFrame();
+            yield return Frames(1);
             Assert.AreEqual(1f, a.Alpha);
             Assert.AreEqual(1f, b.Alpha);
             Assert.IsFalse(ScreenRect(a).Overlaps(ScreenRect(b)), "bubbles were moved apart");
@@ -209,15 +212,14 @@ namespace DynamicDialog.Presentation.Tests
             rosa.Speak("Talk");
             var bubble = bubbles.BubbleFor(rosa);
             yield return WaitUntil(() => bubble.Alpha >= 1f);
-            yield return new WaitForEndOfFrame();
+            yield return Frames(1);
             var screen = new Rect(0, 0, Screen.width, Screen.height);
             var r = ScreenRect(bubble);
             Assert.AreEqual(1f, bubble.Alpha, "still shown");
             Assert.IsTrue(screen.Contains(r.min) && screen.Contains(r.max), $"inside the screen: {r} in {screen}");
 
             rosa.transform.position = new Vector3(60f, 0f, 6f); // far off to the right
-            yield return Frames(1);
-            yield return new WaitForEndOfFrame();
+            yield return Frames(2); // this frame's LateUpdate moves it; read it on the next
             r = ScreenRect(bubble);
             Assert.IsTrue(screen.Contains(r.min) && screen.Contains(r.max), $"clamped to the edge: {r}");
             Assert.Greater(r.center.x, screen.center.x, "on the speaker's side");
@@ -241,12 +243,13 @@ namespace DynamicDialog.Presentation.Tests
             var bubble = bubbles.BubbleFor(rosa);
             yield return WaitUntil(() => bubble.Alpha >= 1f);
 
-            // Measure one frame's fade (after LateUpdate), so an editor hitch can't break the test.
-            yield return new WaitForEndOfFrame();
+            // Measure exactly one LateUpdate's fade with that frame's deltaTime, so an editor hitch can't break the test.
+            // Interrupting here (after Update, before LateUpdate) makes this frame's LateUpdate the first faster fade.
             rosa.StopLine();
             float before = bubble.Alpha;
-            yield return new WaitForEndOfFrame();
-            float expected = Mathf.Max(0f, before - Time.deltaTime / bubble.interruptedFadeSeconds);
+            float dt = Time.deltaTime;
+            yield return null;
+            float expected = Mathf.Max(0f, before - dt / bubble.interruptedFadeSeconds);
             Assert.AreEqual(expected, bubble.Alpha, 1e-3f, "uses the faster interrupted fade");
             Assert.Less(bubble.interruptedFadeSeconds, bubble.fadeOutSeconds);
             yield return WaitUntil(() => bubbles.BubbleFor(rosa) == null);

@@ -118,6 +118,22 @@
   which the test assemblies compile (the core examples also run).
 - The README is shorter and points into the manual. It credits Elan Ruskin's GDC 2012 talk as the inspiration.
 
+#### Testing and CI
+- **GitHub Actions** (`.github/workflows/ci.yml`) on every pull request and push to `main`:
+  - the `netstandard2.1` core build and the core tests with `dotnet test` (no Unity license needed);
+  - actionlint over the workflows;
+  - Edit Mode and Play Mode tests with GameCI on Unity 2021.3.45f2 and 6000.5.5f1, each with every optional package
+    (uGUI/TextMeshPro, Addressables, Localization) and with none. They need Unity license secrets, and are skipped
+    with a warning until those are set. The `Library` folder is cached and test results are uploaded as artifacts.
+- A **player build smoke test** (`.github/workflows/unity-build.yml`, started by hand) builds First Bark as a Linux
+  player (IL2CPP by default, or Mono), runs it headless and fails on any exception.
+- `CI~/make-host-project.sh` generates the throwaway Unity project the package is tested in, for either Unity version
+  and either package set, with TextMeshPro's Essential Resources unpacked in. `CI~/README.md` explains it and lists the
+  secrets to set.
+- Three presentation Play Mode tests (`Bubble_Interrupted_FadesFast`, `Bubble_SpeakerOffScreenOrBehind_StaysOnScreen_OrHides`,
+  `Bubbles_OverlappingSpeakers_StackWithoutOverlap`) no longer wait on `WaitForEndOfFrame`, which never fires in
+  `-batchmode`, so they failed from the command line and in CI. They read the presenters' state a frame later instead.
+
 ### Changed (samples)
 - Robot Banter no longer uses `FindObjectsByType(FindObjectsSortMode)`, which is deprecated in Unity 6.5 and showed two
   compiler warnings on import.
