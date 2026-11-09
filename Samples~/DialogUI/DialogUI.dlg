@@ -1,0 +1,44 @@
+# Dialog UI: three friends chat so the presenters have something to show.
+# Ada starts a conversation every so often; Bo and Cy answer with followups. Everyone also mutters
+# to themselves now and then, so several lines overlap and you can see how each presenter stacks them.
+# Press Space to make Cy shout, which interrupts whatever Cy was saying.
+
+rule AdaStarts
+  who Ada
+  concept TalkIdle
+  cooldown 10s
+  select norepeat
+  say "Has anyone seen my umbrella? I had it a minute ago."
+  say "I've been thinking about taking up the trombone."
+  say "Does anyone else hear that humming, or is it just me?"
+  then Bo BoAnswers after 0.3s
+
+rule BoAnswers
+  who Bo
+  concept BoAnswers
+  select norepeat
+  say "Not since Tuesday."
+  say "Please don't."
+  say "That's the fridge. It's always the fridge."
+  then Cy CyAnswers after 0.3s
+
+rule CyAnswers
+  who Cy
+  concept CyAnswers
+  select norepeat
+  say "I think it's a long sentence that wraps over a few lines, so you can watch the typewriter reveal fill the bubble."
+  say "Agreed."
+  say "Hm."
+
+rule Mutter
+  concept TalkIdle
+  if rand < 35
+  cooldown 6s
+  say "Hmm-hmm-hmm."
+  say "Where was I?"
+  say "Lovely day."
+
+rule CyShouts
+  who Cy
+  concept Shout
+  say "Hey! Over here!"

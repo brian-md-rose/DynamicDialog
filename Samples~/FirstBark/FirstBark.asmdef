@@ -1,0 +1,14 @@
+{
+    "name": "DynamicDialog.Samples.FirstBark",
+    "rootNamespace": "DynamicDialog.Samples.FirstBark",
+    "references": ["DynamicDialog", "DynamicDialog.Core"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

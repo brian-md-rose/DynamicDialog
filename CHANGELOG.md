@@ -89,6 +89,28 @@
     reflection at runtime and needs no `link.xml`.
   - An Android IL2CPP player with High stripping builds, and the Play Mode reset survives stripping.
 
+#### Samples
+- **First Bark** sample: the smallest scene, with one character, one rule file (three rules) and a speech bubble.
+- **Courtyard Quests** sample: the Willow Clinic courtyard, a playable scene with five characters, three fetch quests and
+  pigeons. It covers talking, seeing, areas, pick-ups, facts from code, memory, game events (`do GiveItem`,
+  `do StartWalking at end`), fact-change notifications (quest markers watch world facts instead of rule names),
+  characters reacting to each other, and the package's speech bubbles. It uses Kenney CC0 art (Mini Characters,
+  Input Prompts, Interface Sounds), with each pack's license, and only the files it uses (4.4 MB of art).
+- **Dialog UI** sample: the speech bubbles and subtitle bar side by side, a restyled bubble made as a prefab variant,
+  and a custom presenter (a chat log on `DialogPresenterBehaviour`). Number keys switch between them, and Space
+  interrupts a line.
+- Every sample works in any render pipeline: scenery is built from primitives at Play time with the pipeline's default
+  material, and there are no pipeline-specific assets. Samples that take input use the Input System package when it is
+  installed (an asmdef version define) and the Input Manager otherwise, with no new dependency.
+- Importing a sample into a project without TextMeshPro's Essential Resources now imports them, so the speech bubbles and
+  subtitle bar show text straight away (`DialogTmpEssentials`, in the presentation editor assembly).
+- Checked: each sample imported through Package Manager into new Unity 6.5 projects (Built-in with the Input Manager,
+  and URP with the Input System only), plus First Bark in Unity 2021.3, and played with no console errors.
+
+### Changed (samples)
+- Robot Banter no longer uses `FindObjectsByType(FindObjectsSortMode)`, which is deprecated in Unity 6.5 and showed two
+  compiler warnings on import.
+
 ### Changed (compatibility and performance)
 - **Less garbage per lookup.** A lookup through the components (the director's `map` and `speakers_talking` facts, and
   Nearby Speaker Facts) allocated on every query: the scene name string, and boxed enumerators. It now allocates nothing.

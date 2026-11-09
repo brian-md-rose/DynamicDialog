@@ -1,0 +1,514 @@
+# Willow Clinic courtyard: the Courtyard Quests sample for Dynamic Dialog, with Kenney's Mini Characters.
+# Walk around with WASD, press E to talk to whoever is nearest, F to pick up or drop small things.
+# Save this file during Play Mode and the new rules swap in right away.
+# Window > Dynamic Dialog > Debugger shows every lookup and why each rule did or didn't play.
+#
+# Characters: Player (you), Rosa (the duty nurse), Hale (retired sailor in a wheelchair),
+# Jun (a runner who has lost his crutch), Mei (the gardener, who has lost her glasses),
+# Otto (a visitor on the oak bench, who has lost his hearing aid).
+# Facts from code: player_holding (world, from CourtyardWorldFacts), item (OnPickUp / OnDrop events).
+# Game events: "do GiveItem <item>" and "do StartWalking at end" are handled by QuestHooks.cs.
+
+# ==== Anyone, when there's nothing more specific to say =====================================
+
+rule TalkGeneric
+  concept OnTalk
+  say "Hm? Oh, hello."
+  say "Nice day for it."
+  say "Mm-hm."
+
+# ==== Rosa, the duty nurse ===================================================================
+
+rule RosaFirstMeet
+  who Rosa
+  concept OnTalk
+  if met_rosa missing
+  say "Welcome to Willow Clinic! I'm Rosa, the duty nurse." anim Wave
+  remember world met_rosa = 1
+  then Player PlayerIntroduces after 0.3s
+
+rule PlayerIntroduces
+  who Player
+  concept PlayerIntroduces
+  say "Hi! Just visiting. Mind if I look around?"
+  then Rosa RosaTour after 0.2s
+
+rule RosaTour
+  who Rosa
+  concept RosaTour
+  say "Go ahead. Say hi to Mr. Hale, and if you see Jun, he's lost his crutch again." anim Yes
+
+rule RosaChat
+  who Rosa
+  concept OnTalk
+  if met_rosa exists
+  select shuffle
+  say "Remember to drink water. Everyone forgets to drink water."
+  say "Visiting hours end at six, so no rush."
+  say "Mr. Hale's stories are about forty percent true. Maybe."
+  say "If you need a sit-down, the bench under the oak is the best seat in the house."
+  say "Mei's been squinting at the roses all morning. I think she's lost her glasses again."
+  say "That's Otto on the oak bench. Talk loudly. Very loudly."
+  remember chats += 1
+
+rule RosaChatty
+  who Rosa
+  concept OnTalk
+  if met_rosa exists and chats >= 3
+  cooldown 30s
+  say "You really like talking to nurses, huh? I'm flattered, but I have rounds." anim No
+  remember chats = 0
+
+rule RosaSeesDefib
+  who Rosa
+  concept OnTalk
+  if player_holding == defibrillator
+  bonus 2
+  say "Put. That. Down. Now, please." anim No
+  then Player PlayerSheepish after 0.2s
+
+rule PlayerSheepish
+  who Player
+  concept PlayerSheepish
+  say "Right. Sorry. Putting it down."
+
+rule RosaSeesWheelchair
+  who Rosa
+  concept OnSee
+  if object == wheelchair
+  cooldown 40s
+  say "Someone left a wheelchair out again..."
+
+rule RosaRemindsHale
+  who Rosa
+  concept TalkIdle
+  if near_Hale == 1 and rand < 25
+  cooldown 45s
+  say "Mr. Hale, medication at three o'clock."
+  then Hale HaleAyeAye after 0.3s
+
+rule HaleAyeAye
+  who Hale
+  concept HaleAyeAye
+  say "Aye aye, nurse." anim Yes
+
+# ==== Hale, retired sailor ===================================================================
+
+rule HaleSeesPlayer
+  who Hale
+  concept OnSee
+  if object == player and greeted_player missing
+  say "Ahoy there, landlubber!" anim Wave
+  remember greeted_player = 1
+
+rule HaleFirstMeet
+  who Hale
+  concept OnTalk
+  if met_hale missing
+  say "Name's Hale. Forty years at sea, and I end up parked in a courtyard."
+  remember world met_hale = 1
+  then Player PlayerHaleView after 0.3s
+
+rule PlayerHaleView
+  who Player
+  concept PlayerHaleView
+  say "At least the view is nice?"
+  then Hale HaleHedge after 0.2s
+
+rule HaleHedge
+  who Hale
+  concept HaleHedge
+  say "View? It's a hedge, kid. I've seen better hedges." anim No
+
+rule HaleStories
+  who Hale
+  concept OnTalk
+  if met_hale exists
+  select norepeat
+  cooldown 4s
+  say "Did I ever tell you about the squid? No? Good. Nobody believes it anyway."
+  say "Wind's changing. I can feel it in my knee. The left one. The right one lies."
+  say "Jun's going to run himself into the hedge one of these days."
+  say "See that oak in the corner? Proposed to my wife under it. She said no the first time."
+
+rule HaleCaneMemory
+  who Hale
+  concept OnTalk
+  if player_holding == cane
+  bonus 2
+  say "That cane... my old first mate had one just like it. Hit me with it twice."
+
+rule HaleSunglasses
+  who Hale
+  concept OnTalk
+  if player_holding == sunglasses
+  bonus 2
+  say "Those are mine! Keep 'em, kid. Sun's not out anyway."
+
+rule HaleSeesCrutchCarried
+  who Hale
+  concept OnTalk
+  if player_holding == crutch
+  bonus 2
+  say "Is that Jun's crutch? Get it back to him before he hops into the fountain."
+
+rule HaleTeasesJun
+  who Hale
+  concept TalkIdle
+  if near_Jun == 1 and crutch_returned exists and rand < 30
+  cooldown 40s
+  say "Slow down, Jun! You'll pop a stitch!"
+  then Jun JunLaps after 0.3s
+
+rule JunLaps
+  who Jun
+  concept JunLaps
+  say "Can't slow down! Physio says ten laps!"
+
+# ==== Jun and his crutch (a tiny quest) ======================================================
+
+rule JunAsks
+  who Jun
+  concept OnTalk
+  if crutch_returned missing
+  say "Have you seen my crutch? I set it down somewhere near the garden and... poof."
+  remember world crutch_quest = 1
+
+rule JunStillWaiting
+  who Jun
+  concept OnTalk
+  if crutch_quest exists and crutch_returned missing
+  say "Still no crutch? I'll just... stand here. Heroically."
+
+# QuestHooks.cs handles GiveItem (the crutch goes to Jun's hand)
+# and StartWalking (Jun sets off on his laps once he has finished thanking you).
+rule JunGetsCrutch
+  who Jun
+  concept OnTalk
+  if player_holding == crutch and crutch_returned missing
+  bonus 3
+  say "My crutch! You found it! Thank you thank you thank you." anim Yes
+  remember world crutch_returned = 1
+  do GiveItem crutch
+  do StartWalking at end
+  then Player PlayerYoureWelcome after 0.3s
+
+rule PlayerYoureWelcome
+  who Player
+  concept PlayerYoureWelcome
+  say "Happy to help. Go easy on those laps."
+
+rule JunAfter
+  who Jun
+  concept OnTalk
+  if crutch_returned exists
+  select shuffle
+  say "Lap seven! Or six. I lost count at four."
+  say "Thanks again for the crutch!"
+
+rule JunInGarden
+  who Jun
+  concept TalkIdle
+  if area == garden and crutch_returned exists and rand < 40
+  cooldown 30s
+  say "Garden lap complete!"
+
+rule JunSeesSunglasses
+  who Jun
+  concept OnSee
+  if object == sunglasses
+  cooldown 60s
+  say "Somebody's sunglasses are just lying around."
+
+# ==== Mei, the gardener, and her glasses (quest two) =========================================
+
+rule MeiFirstMeet
+  who Mei
+  concept OnTalk
+  if met_mei missing and glasses_returned missing
+  say "Is someone there? Sorry, dear, I've lost my glasses. Everything's a lovely green blur."
+  remember world met_mei = 1
+  remember world glasses_quest = 1
+  then Player PlayerOffersHelp after 0.3s
+
+rule PlayerOffersHelp
+  who Player
+  concept PlayerOffersHelp
+  say "I'll keep an eye out for them."
+  then Mei MeiHint after 0.2s
+
+rule MeiHint
+  who Mei
+  concept MeiHint
+  say "Bless you. I was sitting by the fountain this morning, if that helps."
+
+rule MeiStillBlind
+  who Mei
+  concept OnTalk
+  if glasses_quest exists and glasses_returned missing
+  select norepeat
+  say "Rosa? Is that you? No? Well, hello whoever you are."
+  say "I just watered something. I'm fairly sure it was a plant."
+  say "Still no glasses? Never mind. I'll garden by smell."
+
+rule MeiSunglassesMixup
+  who Mei
+  concept OnTalk
+  if player_holding == sunglasses and glasses_returned missing
+  bonus 2
+  say "Are those my glasses? Hold them closer... No, those are far too stylish to be mine."
+
+# GiveItem puts the glasses on Mei's face (QuestHooks).
+rule MeiGetsGlasses
+  who Mei
+  concept OnTalk
+  if player_holding == glasses and glasses_returned missing
+  bonus 3
+  say "My glasses! Oh, the flowers are so much brighter than I remembered." anim Yes
+  remember world glasses_returned = 1
+  do GiveItem glasses
+  then Player PlayerFlowersLookGood after 0.3s
+
+rule PlayerFlowersLookGood
+  who Player
+  concept PlayerFlowersLookGood
+  say "The garden looks great, by the way."
+
+rule MeiChat
+  who Mei
+  concept OnTalk
+  if glasses_returned exists
+  select shuffle
+  say "The lavender's doing well this year. The tulips are sulking."
+  say "Jun keeps cutting through my beds. I've started planting cactus."
+  say "Mr. Hale says the hedge is boring. The hedge has never once complained about Mr. Hale."
+
+rule MeiSeesJunBlurry
+  who Mei
+  concept TalkIdle
+  if near_Jun == 1 and glasses_returned missing and crutch_returned exists and rand < 40
+  cooldown 40s
+  say "Was that a person or a very fast shrub?"
+
+rule MeiSeesJun
+  who Mei
+  concept TalkIdle
+  if near_Jun == 1 and glasses_returned exists and crutch_returned exists and rand < 40
+  cooldown 40s
+  say "Mind the petunias, Jun!"
+  then Jun JunSorryMei after 0.3s
+
+rule JunSorryMei
+  who Jun
+  concept JunSorryMei
+  say "Sorry, Mei! Lap eight!"
+
+rule MeiSeesPigeons
+  who Mei
+  concept OnSee
+  if object == pigeons
+  cooldown 60s
+  say "Shoo! Not the seedlings!"
+
+# ==== Otto, on the oak bench, and his hearing aid (quest three) ==============================
+
+rule OttoFirstMeet
+  who Otto
+  concept OnTalk
+  if met_otto missing and hearing_returned missing
+  say "Eh? Speak up! I've lost my hearing aid. And my train of thought, but that's normal."
+  remember world met_otto = 1
+  remember world hearing_quest = 1
+  then Player PlayerAsksWhere after 0.3s
+
+rule PlayerAsksWhere
+  who Player
+  concept PlayerAsksWhere
+  say "Where did you last have it?"
+  then Otto OttoHint after 0.2s
+
+rule OttoHint
+  who Otto
+  concept OttoHint
+  say "A pear? No thank you, I've eaten. ...Oh, the hearing aid! By the lamp on the west path, I think."
+
+rule OttoMishears
+  who Otto
+  concept OnTalk
+  if hearing_quest exists and hearing_returned missing
+  select norepeat
+  say "You want to borrow my boat? I don't have a boat."
+  say "Lovely weather for ducks? Yes, I suppose it is."
+  say "No, no, I've already had my pudding."
+
+# GiveItem puts the hearing aid in Otto's ear (QuestHooks).
+rule OttoGetsHearingAid
+  who Otto
+  concept OnTalk
+  if player_holding == hearing_aid and hearing_returned missing
+  bonus 3
+  say "There it is! ...Goodness. Is that fountain always so loud?" anim Yes
+  remember world hearing_returned = 1
+  do GiveItem hearing_aid
+  then Player PlayerBetter after 0.3s
+
+rule PlayerBetter
+  who Player
+  concept PlayerBetter
+  say "Better?"
+  then Otto OttoHearsHale after 0.2s
+
+rule OttoHearsHale
+  who Otto
+  concept OttoHearsHale
+  say "Much. I can hear the birds again. Unfortunately, I can also hear Hale."
+
+rule OttoChat
+  who Otto
+  concept OnTalk
+  if hearing_returned exists
+  select shuffle
+  say "I sit under this oak every Thursday while my wife's in physio. She's faster than me now."
+  say "Did you know pigeons recognise faces? That one's been glaring at me all morning."
+  say "Fifty years I've been coming to this courtyard. The oak was a twig. So was I."
+
+rule OttoShoutsAtHale
+  who Otto
+  concept TalkIdle
+  if near_Hale == 1 and hearing_returned missing and rand < 25
+  cooldown 50s
+  say "WHAT WAS THAT, HALE?"
+  then Hale HaleDidntSpeak after 0.3s
+
+rule HaleDidntSpeak
+  who Hale
+  concept HaleDidntSpeak
+  say "I didn't say anything, Otto!" anim No
+
+rule OttoSeesPigeons
+  who Otto
+  concept OnSee
+  if object == pigeons
+  cooldown 60s
+  say "Hello, birds. No bread today, I'm afraid."
+
+# ==== Pigeons ================================================================================
+
+rule HaleSeesPigeons
+  who Hale
+  concept OnSee
+  if object == pigeons
+  cooldown 90s
+  say "Rats with wings. Never trust a bird that can't swim."
+
+rule JunSeesPigeons
+  who Jun
+  concept OnSee
+  if object == pigeons and crutch_returned exists
+  cooldown 60s
+  say "Race you, birds!"
+
+# ==== The player =============================================================================
+
+rule PlayerEntersGarden
+  who Player
+  concept OnEnterArea
+  if area == garden
+  cooldown 60s
+  say "Ooh, a garden. Smells like lavender."
+
+rule PlayerEntersNurseStation
+  who Player
+  concept OnEnterArea
+  if area == nurse_station
+  cooldown 60s
+  say "This must be the nurse's station."
+
+rule PlayerEntersOak
+  who Player
+  concept OnEnterArea
+  if area == oak
+  cooldown 60s
+  say "Nice shade under this old oak."
+
+rule PlayerAtFountain
+  who Player
+  concept OnEnterArea
+  if area == fountain
+  cooldown 90s
+  select shuffle
+  say "There are coins in the fountain. Somebody's been making wishes."
+  say "The splashing is nice. Drowns out the beeping from inside."
+
+rule PlayerAtClinicDoor
+  who Player
+  concept OnEnterArea
+  if area == clinic_door
+  cooldown 60s
+  say "Willow Clinic. The door's staff only from this side."
+
+rule PlayerSeesDefib
+  who Player
+  concept OnSee
+  if object == defibrillator
+  once
+  say "A defibrillator. Hopefully nobody needs that today."
+
+rule PlayerSeesCrutch
+  who Player
+  concept OnSee
+  if object == crutch and crutch_quest exists and crutch_returned missing and player_holding != crutch
+  say "Wait, is that Jun's crutch?"
+
+rule PlayerPicksUp
+  who Player
+  concept OnPickUp
+  say "Got it."
+
+rule PlayerPicksUpCrutch
+  who Player
+  concept OnPickUp
+  if item == crutch and crutch_quest exists
+  say "Found it! Better take this to Jun."
+
+rule PlayerPicksUpGlasses
+  who Player
+  concept OnPickUp
+  if item == glasses and glasses_quest exists
+  say "Reading glasses. These must be Mei's."
+
+rule PlayerPicksUpHearingAid
+  who Player
+  concept OnPickUp
+  if item == hearing_aid and hearing_quest exists
+  say "Otto's hearing aid! Better get it back to him."
+
+rule PlayerSeesGlasses
+  who Player
+  concept OnSee
+  if object == glasses and glasses_quest exists and glasses_returned missing and player_holding != glasses
+  say "Glasses on the fountain rim. Mei's, maybe?"
+
+rule PlayerSeesHearingAid
+  who Player
+  concept OnSee
+  if object == hearing_aid and hearing_quest exists and hearing_returned missing and player_holding != hearing_aid
+  say "Is that a hearing aid in the grass?"
+
+rule PlayerSeesPigeons
+  who Player
+  concept OnSee
+  if object == pigeons
+  once
+  say "Pigeons. The real residents of this courtyard."
+
+rule PlayerPicksUpDefib
+  who Player
+  concept OnPickUp
+  if item == defibrillator
+  say "Heavier than it looks."
+
+rule PlayerDrops
+  who Player
+  concept OnDrop
+  say "There."

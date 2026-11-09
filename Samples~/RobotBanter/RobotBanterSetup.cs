@@ -104,7 +104,7 @@ namespace DynamicDialog.Samples
                 cam.transform.position = new Vector3(0f, 11f, -11f);
                 cam.transform.LookAt(Vector3.zero);
             }
-            if (Object.FindObjectsByType<Light>(FindObjectsSortMode.None).Length == 0)
+            if (Object.FindAnyObjectByType<Light>() == null)
             {
                 var light = new GameObject("Light", typeof(Light)).GetComponent<Light>();
                 light.type = LightType.Directional;

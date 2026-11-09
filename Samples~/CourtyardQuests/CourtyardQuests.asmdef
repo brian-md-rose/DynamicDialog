@@ -1,0 +1,16 @@
+{
+    "name": "DynamicDialog.Samples.CourtyardQuests",
+    "rootNamespace": "DynamicDialog.Samples.Courtyard",
+    "references": ["DynamicDialog", "DynamicDialog.Core", "Unity.InputSystem"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        { "name": "com.unity.inputsystem", "expression": "1.0.0", "define": "DD_SAMPLE_INPUT_SYSTEM" }
+    ],
+    "noEngineReferences": false
+}

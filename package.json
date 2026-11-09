@@ -14,9 +14,24 @@
   },
   "samples": [
     {
+      "displayName": "First Bark",
+      "description": "The smallest Dynamic Dialog scene: one character, one rule file, and a speech bubble. Start here. Needs uGUI and TextMeshPro (installed in new projects by default).",
+      "path": "Samples~/FirstBark"
+    },
+    {
       "displayName": "Robot Banter",
       "description": "Two robots wander a room and talk about what they see: sightings, a running gag, conversations, replies from whoever is in earshot, idle chatter, and danger interrupting a conversation. All lines are in RobotBanter.dlg; edit it while playing.",
       "path": "Samples~/RobotBanter"
+    },
+    {
+      "displayName": "Courtyard Quests",
+      "description": "A playable clinic courtyard with five characters, three fetch quests and pigeons: talking, seeing, areas, pick-ups, memory, game events (do), fact changes and speech bubbles. Kenney CC0 art. Any render pipeline; Input System or Input Manager. Needs uGUI and TextMeshPro.",
+      "path": "Samples~/CourtyardQuests"
+    },
+    {
+      "displayName": "Dialog UI",
+      "description": "The speech bubble and subtitle bar presenters side by side, a restyled bubble (prefab variant), and a custom presenter (a chat log) built on IDialogPresenter. Switch between them with 1-4. Needs uGUI and TextMeshPro.",
+      "path": "Samples~/DialogUI"
     }
   ],
   "author": { "name": "Brian Rose" }
