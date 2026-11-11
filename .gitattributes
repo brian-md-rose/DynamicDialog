@@ -3,6 +3,7 @@
 # would get LFS pointer files instead of models, textures and sounds.
 *.fbx binary
 *.png binary
+*.gif binary
 *.ogg binary
 *.wav binary
 *.unitypackage binary

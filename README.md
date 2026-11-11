@@ -8,6 +8,10 @@ character to start a conversation, and raise game events for your code.
 Inspired by Elan Ruskin's GDC 2012 talk *"Rule Databases for Contextual Dialog and Game Logic"*. This package is an
 independent implementation and uses no material from the talk.
 
+![A player asks Jun what's wrong, finds his lost crutch in the garden and brings it back; each character's lines are picked by the rules](Documentation~/images/demo.gif)
+
+*A small test scene: every line above is chosen by the rule database from what the characters know at that moment.*
+
 ## Documentation
 
 The manual is in [`Documentation~`](Documentation~/index.md):
