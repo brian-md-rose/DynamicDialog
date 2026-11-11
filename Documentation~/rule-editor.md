@@ -22,6 +22,17 @@ The **Rules** tab has two halves:
 
 Below the rule are **Links to other rules** and a **Preview** of the rule as `.dlg` text.
 
+![The Rules tab: the rule list on the left, and the selected rule's conditions, line, fact change, game events and followup on the right](images/rule-editor-rule-detail.png)
+
+The search box above the list filters it to rules that mention the text anywhere: in the name, speaker, concept,
+lines, conditions, fact changes, events, followups or comment.
+
+![The rule list filtered by a search for "crutch", showing 13 of 69 rules](images/rule-editor-search.png)
+
+With **By speaker** on, each character's rules sit under a heading you can fold:
+
+![The rule list grouped by speaker](images/rule-editor-grouped-by-speaker.png)
+
 **Undo** and **Redo** work for every change. Keyboard shortcuts: ↑ and ↓ select rules, Ctrl+D duplicates,
 Delete removes, Ctrl+C and Ctrl+V copy and paste rules as text, and Alt+← goes back to the previous rule after
 following a link.
@@ -35,6 +46,8 @@ The names come from a **Rule Editor String Table** asset. Create one from the wi
 with the names the open file already uses), or with **Assets > Create > Dynamic Dialog > Rule Editor String Table**.
 The tab can also **Import From Open File** or **Import From All .dlg Files**. Each category is a plain list you can
 edit there or in the asset's inspector. The window remembers which table you used last.
+
+![The String Table tab: lists of characters and concepts, each with how many times the open file uses it](images/rule-editor-string-table.png)
 
 A string table keeps everyone on a team using the same spelling. A fact typed as `said_intro` in one rule and
 `saidIntro` in another is two different facts, and the drop-downs make that hard to do by accident.
